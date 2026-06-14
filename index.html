@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0A0B0D" />
+
+  <!-- LIVE DATA: paste your Good Game Arena ids here to switch matches & roster
+       from placeholders to real data. Leave blank to keep placeholders.
+       Find your club id after deploying by visiting /api/gg?path=club -->
+  <meta name="gg-club" content="" />
+  <meta name="gg-team" content="" />
+
+  <title>Urge Intensesports — Professional CS2 Esports Team</title>
+  <meta name="description" content="Urge Intensesports is a professional Counter-Strike 2 (CS2) esports team competing at the highest level. Norwegian-rooted, internationally fueled." />
+
+  <!-- Open Graph / social cards -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Urge Intensesports — Professional CS2 Esports Team" />
+  <meta property="og:description" content="A professional Counter-Strike 2 roster built to dominate. bondeN · Zutch · tob1 · Hamruz · Jaybee." />
+  <meta property="og:image" content="assets/images/logo.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Urge Intensesports — CS2" />
+  <meta name="twitter:description" content="Professional Counter-Strike 2 esports team." />
+  <meta name="twitter:image" content="assets/images/logo.png" />
+
+  <!-- Favicon (uses your logo) -->
+  <link rel="icon" type="image/png" href="assets/images/logo.png" />
+  <link rel="apple-touch-icon" href="assets/images/logo.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ============ PRELOADER ============ -->
+  <div class="preloader" id="preloader" aria-hidden="true">
+    <div class="preloader__inner">
+      <div class="preloader__logo">URGE</div>
+      <div class="preloader__bar"><span></span></div>
+      <div class="preloader__tag">INTENSESPORTS // CS2</div>
+    </div>
+  </div>
+
+  <!-- ============ SCROLL PROGRESS ============ -->
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+  <!-- ============ NAVBAR ============ -->
+  <header class="nav" id="nav">
+    <div class="container nav__inner">
+      <a href="#home" class="nav__brand" aria-label="Urge Intensesports home">
+        <img src="assets/images/logo.png" alt="Urge Intensesports logo" class="nav__logo"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+        <span class="nav__brand-fallback" style="display:none;">UI</span>
+        <span class="nav__brand-text">URGE <em>INTENSESPORTS</em></span>
+      </a>
+
+      <nav class="nav__links" id="navLinks" aria-label="Primary">
+        <a href="#home">Home</a>
+        <a href="#about">About</a>
+        <a href="#roster">Team</a>
+        <a href="#matches">Matches</a>
+        <a href="#achievements">Trophies</a>
+        <a href="#contact" class="nav__cta">Contact</a>
+      </nav>
+
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="home">
+      <canvas class="hero__canvas" id="heroCanvas" aria-hidden="true"></canvas>
+      <div class="hero__grid" aria-hidden="true"></div>
+      <div class="hero__glow" aria-hidden="true"></div>
+
+      <div class="container hero__content">
+        <p class="eyebrow reveal" data-reveal>
+          <span class="eyebrow__dot"></span> Professional Counter-Strike 2 · EST. 2024
+        </p>
+
+        <h1 class="hero__title">
+          <span class="glitch reveal" data-reveal data-text="URGE">URGE</span>
+          <span class="hero__title-2 reveal" data-reveal data-delay="1">INTENSESPORTS</span>
+        </h1>
+
+        <p class="hero__sub reveal" data-reveal data-delay="2">
+          Five players. One objective. We don't play rounds — we end them.
+          A Norwegian-rooted CS2 roster built to take territory and never give it back.
+        </p>
+
+        <div class="hero__actions reveal" data-reveal data-delay="3">
+          <a href="#contact" class="btn btn--primary">
+            <span>Business Inquiries</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a href="#stream" class="btn btn--ghost">
+            <span class="live-dot"></span> Watch Live
+          </a>
+        </div>
+
+        <div class="hero__meta reveal" data-reveal data-delay="4">
+          <div class="hero__flag-line">
+            <span class="flag-no" aria-hidden="true"></span>
+            <span class="flag-de" aria-hidden="true"></span>
+            <span>Norway · Germany</span>
+          </div>
+          <span class="hero__meta-sep">/</span>
+          <span>#URGEUP</span>
+        </div>
+      </div>
+
+      <a href="#about" class="hero__scroll" aria-label="Scroll down">
+        <span class="hero__scroll-text">SCROLL</span>
+        <span class="hero__scroll-line"></span>
+      </a>
+    </section>
+
+    <!-- ============ MARQUEE ============ -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>COUNTER-STRIKE 2</span><span class="dot">●</span>
+        <span>COMPETITIVE</span><span class="dot">●</span>
+        <span>#URGEUP</span><span class="dot">●</span>
+        <span>NEVER GIVE GROUND</span><span class="dot">●</span>
+        <span>COUNTER-STRIKE 2</span><span class="dot">●</span>
+        <span>COMPETITIVE</span><span class="dot">●</span>
+        <span>#URGEUP</span><span class="dot">●</span>
+        <span>NEVER GIVE GROUND</span><span class="dot">●</span>
+      </div>
+    </div>
+
+    <!-- ============ ABOUT ============ -->
+    <section class="section about" id="about">
+      <div class="container about__grid">
+        <div class="about__copy">
+          <p class="eyebrow reveal" data-reveal><span class="eyebrow__dot"></span> The Organization</p>
+          <h2 class="section__title reveal" data-reveal>BUILT FOR <span class="accent">THE CLUTCH</span></h2>
+          <p class="lead reveal" data-reveal>
+            Urge Intensesports is a professional Counter-Strike 2 organization forged on the
+            Scandinavian competitive scene. We pair raw individual firepower with disciplined,
+            structured CT setups and relentless T-side execution.
+          </p>
+          <p class="reveal" data-reveal>
+            Our philosophy is simple: out-prepare, out-aim, and out-last every opponent across the
+            server. From qualifiers to grand finals, we show up to win — and we bring the noise with us.
+          </p>
+          <a href="#roster" class="link-arrow reveal" data-reveal>
+            Meet the roster
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+
+        <div class="stats reveal" data-reveal>
+          <div class="stat">
+            <span class="stat__num" data-count="248" data-suffix="">0</span>
+            <span class="stat__label">Maps Played</span>
+          </div>
+          <div class="stat">
+            <span class="stat__num" data-count="71" data-suffix="%">0</span>
+            <span class="stat__label">Win Rate</span>
+          </div>
+          <div class="stat">
+            <span class="stat__num" data-count="12" data-suffix="">0</span>
+            <span class="stat__label">Titles</span>
+          </div>
+          <div class="stat">
+            <span class="stat__num" data-count="5" data-suffix="">0</span>
+            <span class="stat__label">Nations Faced</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ROSTER ============ -->
+    <section class="section roster" id="roster">
+      <div class="container">
+        <div class="section__head">
+          <p class="eyebrow reveal" data-reveal><span class="eyebrow__dot"></span> The Active Roster</p>
+          <h2 class="section__title reveal" data-reveal>THE <span class="accent">STARTING FIVE</span></h2>
+        </div>
+
+        <div class="roster__grid">
+          <!-- Player card template repeated -->
+          <article class="player reveal" data-reveal data-initial="b" style="--accent-img: linear-gradient(160deg,#1c2410,#0c0d0a);">
+            <div class="player__media">
+              <span class="player__ghost">B</span>
+              <span class="player__num">01</span>
+            </div>
+            <div class="player__body">
+              <div class="player__top">
+                <h3 class="player__name">bondeN</h3>
+                <span class="flag-no" title="Norway" aria-label="Norway"></span>
+              </div>
+              <p class="player__role">Norway</p>
+              <div class="player__socials" aria-label="bondeN socials">
+                <a href="#" aria-label="bondeN on Twitch" data-social="twitch"></a>
+                <a href="#" aria-label="bondeN on X" data-social="x"></a>
+                <a href="#" aria-label="bondeN on Steam" data-social="steam"></a>
+                <a href="#" aria-label="bondeN on Instagram" data-social="ig"></a>
+              </div>
+            </div>
+          </article>
+
+          <article class="player reveal" data-reveal data-delay="1" data-initial="z">
+            <div class="player__media">
+              <span class="player__ghost">Z</span>
+              <span class="player__num">02</span>
+            </div>
+            <div class="player__body">
+              <div class="player__top">
+                <h3 class="player__name">Zutch</h3>
+                <span class="flag-no" title="Norway" aria-label="Norway"></span>
+              </div>
+              <p class="player__role">Norway</p>
+              <div class="player__socials" aria-label="Zutch socials">
+                <a href="#" aria-label="Zutch on Twitch" data-social="twitch"></a>
+                <a href="#" aria-label="Zutch on X" data-social="x"></a>
+                <a href="#" aria-label="Zutch on Steam" data-social="steam"></a>
+                <a href="#" aria-label="Zutch on Instagram" data-social="ig"></a>
+              </div>
+            </div>
+          </article>
+
+          <article class="player player--featured reveal" data-reveal data-delay="2" data-initial="t">
+            <div class="player__media">
+              <span class="player__ghost">T</span>
+              <span class="player__num">03</span>
+            </div>
+            <div class="player__body">
+              <div class="player__top">
+                <h3 class="player__name">tob1</h3>
+                <span class="flag-de" title="Germany" aria-label="Germany"></span>
+              </div>
+              <p class="player__role">Germany</p>
+              <div class="player__socials" aria-label="tob1 socials">
+                <a href="#" aria-label="tob1 on Twitch" data-social="twitch"></a>
+                <a href="#" aria-label="tob1 on X" data-social="x"></a>
+                <a href="#" aria-label="tob1 on Steam" data-social="steam"></a>
+                <a href="#" aria-label="tob1 on Instagram" data-social="ig"></a>
+              </div>
+            </div>
+          </article>
+
+          <article class="player reveal" data-reveal data-delay="3" data-initial="h">
+            <div class="player__media">
+              <span class="player__ghost">H</span>
+              <span class="player__num">04</span>
+            </div>
+            <div class="player__body">
+              <div class="player__top">
+                <h3 class="player__name">Hamruz</h3>
+                <span class="flag-no" title="Norway" aria-label="Norway"></span>
+              </div>
+              <p class="player__role">Norway</p>
+              <div class="player__socials" aria-label="Hamruz socials">
+                <a href="#" aria-label="Hamruz on Twitch" data-social="twitch"></a>
+                <a href="#" aria-label="Hamruz on X" data-social="x"></a>
+                <a href="#" aria-label="Hamruz on Steam" data-social="steam"></a>
+                <a href="#" aria-label="Hamruz on Instagram" data-social="ig"></a>
+              </div>
+            </div>
+          </article>
+
+          <article class="player reveal" data-reveal data-delay="4" data-initial="j">
+            <div class="player__media">
+              <span class="player__ghost">J</span>
+              <span class="player__num">05</span>
+            </div>
+            <div class="player__body">
+              <div class="player__top">
+                <h3 class="player__name">Jaybee</h3>
+                <span class="flag-no" title="Norway" aria-label="Norway"></span>
+              </div>
+              <p class="player__role">Norway</p>
+              <div class="player__socials" aria-label="Jaybee socials">
+                <a href="#" aria-label="Jaybee on Twitch" data-social="twitch"></a>
+                <a href="#" aria-label="Jaybee on X" data-social="x"></a>
+                <a href="#" aria-label="Jaybee on Steam" data-social="steam"></a>
+                <a href="#" aria-label="Jaybee on Instagram" data-social="ig"></a>
+              </div>
+            </div>
+          </article>
+
+          <!-- Coaching / staff slot -->
+          <article class="player player--join reveal" data-reveal data-delay="5">
+            <div class="player__join-inner">
+              <span class="player__join-plus">+</span>
+              <h3>STAFF &amp; SUBS</h3>
+              <p>Coach, analyst and content slots open.</p>
+              <a href="#contact" class="link-arrow">Get in touch
+                <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MATCHES ============ -->
+    <section class="section matches" id="matches">
+      <div class="container">
+        <div class="section__head">
+          <p class="eyebrow reveal" data-reveal><span class="eyebrow__dot"></span> Schedule &amp; Results</p>
+          <h2 class="section__title reveal" data-reveal>THE <span class="accent">FIXTURES</span></h2>
+        </div>
+
+        <div class="matches__tabs reveal" data-reveal>
+          <button class="matches__tab is-active" data-tab="upcoming">Upcoming</button>
+          <button class="matches__tab" data-tab="results">Results</button>
+        </div>
+
+        <!-- Upcoming -->
+        <div class="matches__panel is-active" data-panel="upcoming">
+          <div class="match reveal" data-reveal>
+            <span class="match__event">ESL Challenger</span>
+            <div class="match__teams">
+              <span class="match__team">Urge Intensesports</span>
+              <span class="match__vs">VS</span>
+              <span class="match__team match__team--opp">TBD Opponent</span>
+            </div>
+            <span class="match__date">JUN 22 · 18:00 CET</span>
+          </div>
+          <div class="match reveal" data-reveal data-delay="1">
+            <span class="match__event">Nordic Masters</span>
+            <div class="match__teams">
+              <span class="match__team">Urge Intensesports</span>
+              <span class="match__vs">VS</span>
+              <span class="match__team match__team--opp">TBD Opponent</span>
+            </div>
+            <span class="match__date">JUN 29 · 20:00 CET</span>
+          </div>
+          <div class="match reveal" data-reveal data-delay="2">
+            <span class="match__event">Online Qualifier</span>
+            <div class="match__teams">
+              <span class="match__team">Urge Intensesports</span>
+              <span class="match__vs">VS</span>
+              <span class="match__team match__team--opp">TBD Opponent</span>
+            </div>
+            <span class="match__date">JUL 04 · 17:00 CET</span>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="matches__panel" data-panel="results">
+          <div class="match match--win reveal" data-reveal>
+            <span class="match__event">Nordic Masters</span>
+            <div class="match__teams">
+              <span class="match__team">Urge Intensesports</span>
+              <span class="match__score">16 : 9</span>
+              <span class="match__team match__team--opp">Rival Five</span>
+            </div>
+            <span class="match__result match__result--win">WIN</span>
+          </div>
+          <div class="match match--win reveal" data-reveal data-delay="1">
+            <span class="match__event">ESL Challenger</span>
+            <div class="match__teams">
+              <span class="match__team">Urge Intensesports</span>
+              <span class="match__score">2 : 1</span>
+              <span class="match__team match__team--opp">Apex Order</span>
+            </div>
+            <span class="match__result match__result--win">WIN</span>
+          </div>
+          <div class="match match--loss reveal" data-reveal data-delay="2">
+            <span class="match__event">Grand Final</span>
+            <div class="match__teams">
+              <span class="match__team">Urge Intensesports</span>
+              <span class="match__score">1 : 2</span>
+              <span class="match__team match__team--opp">North Wolves</span>
+            </div>
+            <span class="match__result match__result--loss">LOSS</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ACHIEVEMENTS ============ -->
+    <section class="section achievements" id="achievements">
+      <div class="container">
+        <div class="section__head">
+          <p class="eyebrow reveal" data-reveal><span class="eyebrow__dot"></span> The Trophy Cabinet</p>
+          <h2 class="section__title reveal" data-reveal>EARNED, <span class="accent">NOT GIVEN</span></h2>
+        </div>
+
+        <div class="timeline">
+          <div class="tl-item reveal" data-reveal>
+            <span class="tl-year">2025</span>
+            <div class="tl-card">
+              <span class="tl-place tl-place--gold">1ST</span>
+              <h3>Nordic Masters — Spring</h3>
+              <p>Took the bracket without dropping a single map in playoffs.</p>
+            </div>
+          </div>
+          <div class="tl-item reveal" data-reveal data-delay="1">
+            <span class="tl-year">2025</span>
+            <div class="tl-card">
+              <span class="tl-place tl-place--silver">2ND</span>
+              <h3>ESL Challenger League</h3>
+              <p>Runner-up after a five-map grand final thriller.</p>
+            </div>
+          </div>
+          <div class="tl-item reveal" data-reveal data-delay="2">
+            <span class="tl-year">2024</span>
+            <div class="tl-card">
+              <span class="tl-place tl-place--gold">1ST</span>
+              <h3>Scandinavian Open</h3>
+              <p>First major title as a complete roster.</p>
+            </div>
+          </div>
+          <div class="tl-item reveal" data-reveal data-delay="3">
+            <span class="tl-year">2024</span>
+            <div class="tl-card">
+              <span class="tl-place tl-place--bronze">3RD</span>
+              <h3>Online Pro Circuit</h3>
+              <p>Debut podium finish that put us on the map.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STREAM ============ -->
+    <section class="section stream" id="stream">
+      <div class="container stream__grid">
+        <div class="stream__copy">
+          <p class="eyebrow reveal" data-reveal><span class="eyebrow__dot"></span> Live &amp; On Demand</p>
+          <h2 class="section__title reveal" data-reveal>CATCH US <span class="accent">LIVE</span></h2>
+          <p class="lead reveal" data-reveal>
+            Official matches, scrims and player POV streams. Follow the channels to get pinged
+            the second we go live.
+          </p>
+          <div class="stream__btns reveal" data-reveal>
+            <a href="#" class="btn btn--primary"><span>Follow on Twitch</span></a>
+            <a href="#" class="btn btn--ghost"><span>YouTube</span></a>
+          </div>
+        </div>
+
+        <div class="stream__embed reveal" data-reveal>
+          <div class="stream__placeholder">
+            <span class="live-dot live-dot--lg"></span>
+            <p>Twitch / YouTube embed goes here</p>
+            <small>Replace this block with your channel embed iframe.</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SPONSORS ============ -->
+    <section class="section sponsors" id="sponsors">
+      <div class="container">
+        <p class="eyebrow eyebrow--center reveal" data-reveal><span class="eyebrow__dot"></span> Partners &amp; Sponsors</p>
+      </div>
+      <div class="sponsors__marquee" aria-hidden="true">
+        <div class="sponsors__track">
+          <span>YOUR&nbsp;BRAND</span><span>GEAR&nbsp;CO</span><span>ENERGY+</span>
+          <span>NETHOST</span><span>PERIPHERALS</span><span>APPAREL</span>
+          <span>YOUR&nbsp;BRAND</span><span>GEAR&nbsp;CO</span><span>ENERGY+</span>
+          <span>NETHOST</span><span>PERIPHERALS</span><span>APPAREL</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT ============ -->
+    <section class="section contact" id="contact">
+      <div class="container contact__grid">
+        <div class="contact__copy">
+          <p class="eyebrow reveal" data-reveal><span class="eyebrow__dot"></span> Get In Touch</p>
+          <h2 class="section__title reveal" data-reveal>LET'S <span class="accent">TALK</span></h2>
+          <p class="lead reveal" data-reveal>
+            Sponsorship, bootcamp invites, press, or trials — drop us a line and the staff will
+            get back to you.
+          </p>
+          <ul class="contact__list reveal" data-reveal>
+            <li><span>Business</span> partnerships@urgeintensesports.gg</li>
+            <li><span>Press</span> media@urgeintensesports.gg</li>
+            <li><span>Tryouts</span> tryouts@urgeintensesports.gg</li>
+          </ul>
+          <div class="socials reveal" data-reveal>
+            <a href="#" aria-label="X / Twitter" data-social="x"></a>
+            <a href="#" aria-label="Instagram" data-social="ig"></a>
+            <a href="#" aria-label="Twitch" data-social="twitch"></a>
+            <a href="#" aria-label="Discord" data-social="discord"></a>
+            <a href="#" aria-label="YouTube" data-social="yt"></a>
+          </div>
+        </div>
+
+        <form class="contact__form reveal" data-reveal id="contactForm" novalidate>
+          <div class="field">
+            <label for="cname">Name</label>
+            <input type="text" id="cname" name="name" placeholder="Your name" required />
+          </div>
+          <div class="field">
+            <label for="cemail">Email</label>
+            <input type="email" id="cemail" name="email" placeholder="you@email.com" required />
+          </div>
+          <div class="field">
+            <label for="csubject">Subject</label>
+            <select id="csubject" name="subject">
+              <option>Sponsorship</option>
+              <option>Press / Media</option>
+              <option>Player Tryout</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="cmsg">Message</label>
+            <textarea id="cmsg" name="message" rows="4" placeholder="Tell us what's up..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn--primary btn--block">
+            <span>Send Message</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <p class="contact__note" id="formNote" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <img src="assets/images/logo.png" alt="Urge Intensesports" class="footer__logo"
+             onerror="this.style.display='none';" />
+        <div>
+          <strong>URGE INTENSESPORTS</strong>
+          <span>Professional CS2 · #URGEUP</span>
+        </div>
+      </div>
+
+      <nav class="footer__nav" aria-label="Footer">
+        <a href="#about">About</a>
+        <a href="#roster">Team</a>
+        <a href="#matches">Matches</a>
+        <a href="#achievements">Trophies</a>
+        <a href="#contact">Contact</a>
+      </nav>
+
+      <div class="socials socials--sm">
+        <a href="#" aria-label="X / Twitter" data-social="x"></a>
+        <a href="#" aria-label="Instagram" data-social="ig"></a>
+        <a href="#" aria-label="Twitch" data-social="twitch"></a>
+        <a href="#" aria-label="Discord" data-social="discord"></a>
+      </div>
+    </div>
+    <div class="footer__bar">
+      <span>© <span id="year">2025</span> Urge Intensesports. All rights reserved.</span>
+      <span>Built for the clutch.</span>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/live.js"></script>
+</body>
+</html>

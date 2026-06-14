@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# vercel
+.vercel/
+
+# secrets — never commit real tokens
+.env
+.env.local
+.env.*.local
+
+# misc
+*.log
+.DS_Store
+Thumbs.db
