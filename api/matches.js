@@ -28,10 +28,12 @@ module.exports = async (req, res) => {
 
     const upcoming = matches
       .filter((m) => !m.finished && !m.cancelled)
-      .sort((a, b) => a.ts - b.ts);
+      .sort((a, b) => a.ts - b.ts)
+      .slice(0, 8);
     const results = matches
       .filter((m) => m.finished)
-      .sort((a, b) => b.ts - a.ts);
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 12); // most recent dozen — the team has 100+ historical matches
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1800');
@@ -47,8 +49,8 @@ async function fetchTeamMatchups() {
   let page = 1;
   let lastPage = 1;
   do {
-    // team= is a best-effort upstream filter; we filter again below regardless.
-    const data = await gg(`matchup?team=${TEAM_ID}&per_page=50&page=${page}`);
+    // team_id is the real upstream filter; we still filter client-side as a safety net.
+    const data = await gg(`matchup?team_id=${TEAM_ID}&per_page=50&page=${page}`);
     const list = Array.isArray(data) ? data : (data && data.data) || [];
     for (const m of list) {
       const home = m.home_signup && m.home_signup.team && m.home_signup.team.id;
