@@ -16,7 +16,8 @@
    ========================================================= */
 
 const BASE = (process.env.GGARENA_BASE || 'https://www.ggarena.no/api/paradise/v2').replace(/\/+$/, '');
-const TOKEN = process.env.GGARENA_TOKEN;
+// Tolerate common paste mistakes: stray whitespace/newlines or an accidental "Bearer " prefix.
+const TOKEN = (process.env.GGARENA_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
 
 // Paths permitted through the proxy (the part after the API base URL).
 const ALLOW = [
