@@ -1,0 +1,114 @@
+/* =========================================================
+   /api/matches  —  real fixtures & results for the team.
+
+   Fetches the Good Game Arena matchup list (server-side, token
+   hidden), keeps only matches involving OUR team, normalizes
+   them, and returns a clean shape the front-end can render:
+
+     { upcoming: [...], results: [...] }
+
+   Each item: { id, url, opponent, opponentLogo, event, division,
+                date, finished, ourScore, theirScore, result,
+                walkover, twitch }
+   ========================================================= */
+
+const BASE = (process.env.GGARENA_BASE || 'https://www.ggarena.no/api/paradise/v2').replace(/\/+$/, '');
+const TOKEN = (process.env.GGARENA_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
+
+// Our GG Arena team id (not secret). Override with an env var if it ever changes.
+const TEAM_ID = Number(process.env.GGARENA_TEAM_ID || 162570);
+const MAX_PAGES = 12; // safety cap on pagination
+
+module.exports = async (req, res) => {
+  if (!TOKEN) return fail(res, 503, 'Server is missing the GGARENA_TOKEN environment variable.');
+
+  try {
+    const raw = await fetchTeamMatchups();
+    const matches = raw.map(normalize).filter(Boolean);
+
+    const upcoming = matches
+      .filter((m) => !m.finished && !m.cancelled)
+      .sort((a, b) => a.ts - b.ts);
+    const results = matches
+      .filter((m) => m.finished)
+      .sort((a, b) => b.ts - a.ts);
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1800');
+    return res.status(200).json({ upcoming, results, count: matches.length });
+  } catch (err) {
+    return fail(res, err.statusCode || 502, err.message || 'Failed to load matches.');
+  }
+};
+
+// Page through /matchup and keep only matches that involve our team.
+async function fetchTeamMatchups() {
+  const collected = [];
+  let page = 1;
+  let lastPage = 1;
+  do {
+    // team= is a best-effort upstream filter; we filter again below regardless.
+    const data = await gg(`matchup?team=${TEAM_ID}&per_page=50&page=${page}`);
+    const list = Array.isArray(data) ? data : (data && data.data) || [];
+    for (const m of list) {
+      const home = m.home_signup && m.home_signup.team && m.home_signup.team.id;
+      const away = m.away_signup && m.away_signup.team && m.away_signup.team.id;
+      if (home === TEAM_ID || away === TEAM_ID) collected.push(m);
+    }
+    lastPage = (data && data.meta && data.meta.last_page) || 1;
+    page++;
+  } while (page <= lastPage && page <= MAX_PAGES);
+  return collected;
+}
+
+async function gg(path) {
+  const r = await fetch(`${BASE}/${path}`, {
+    headers: { Authorization: `Bearer ${TOKEN}`, Accept: 'application/json' },
+  });
+  if (!r.ok) {
+    const e = new Error(`Good Game Arena API returned ${r.status}.`);
+    e.statusCode = r.status === 401 || r.status === 403 ? 502 : r.status;
+    throw e;
+  }
+  return r.json();
+}
+
+function normalize(m) {
+  const isHome = m.home_signup && m.home_signup.team && m.home_signup.team.id === TEAM_ID;
+  const them = isHome ? m.away_signup : m.home_signup;
+  if (!them || !them.team) return null;
+
+  const ourScore = isHome ? m.home_score : m.away_score;
+  const theirScore = isHome ? m.away_score : m.home_score;
+  const finished = m.finished_at != null;
+  const won = m.winning_side ? m.winning_side === (isHome ? 'home' : 'away') : null;
+
+  return {
+    id: m.id,
+    url: m.url || null,
+    opponent: them.team.name || them.name || 'TBD',
+    opponentLogo: (them.team.logo && them.team.logo.url) || null,
+    event: (m.competition && m.competition.name) || 'Match',
+    division: (m.division && m.division.name) || null,
+    date: m.start_time || null,
+    ts: m.start_time ? new Date(String(m.start_time).replace(/\.\d+Z$/, 'Z')).getTime() : 0,
+    finished,
+    cancelled: !!m.cancelled,
+    walkover: !!m.walkover,
+    ourScore: numOrNull(ourScore),
+    theirScore: numOrNull(theirScore),
+    result: finished && won != null ? (won ? 'win' : 'loss') : null,
+    twitch: (m.videos || []).map((v) => v.source === 'twitch' && v.url).find(Boolean) || null,
+  };
+}
+
+function numOrNull(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+function fail(res, code, message) {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(code).json({ error: message });
+}

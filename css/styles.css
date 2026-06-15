@@ -696,6 +696,26 @@ p { color: var(--muted); }
   background: var(--bg); border-radius: 8px;
 }
 .match__date { text-align: right; font-family: var(--f-head); letter-spacing: 1px; font-size: 0.85rem; color: var(--muted); }
+a.match { text-decoration: none; color: inherit; }
+.match__logo {
+  width: 24px; height: 24px;
+  border-radius: 5px;
+  object-fit: contain;
+  background: #0c0d0a;
+  padding: 2px;
+  margin-right: 9px;
+  vertical-align: middle;
+}
+.match__opp-wrap { display: inline-flex; align-items: center; }
+.match__empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 30px;
+  border: 1px dashed var(--line-2);
+  border-radius: 12px;
+  font-family: var(--f-head);
+  letter-spacing: 1px;
+}
 .match__result { text-align: right; font-family: var(--f-display); font-size: 1.3rem; letter-spacing: 2px; }
 .match__result--win { color: var(--green); }
 .match__result--loss { color: var(--orange); }
