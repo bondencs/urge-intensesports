@@ -578,6 +578,15 @@ p { color: var(--muted); }
   transition: transform 0.5s var(--ease), color 0.5s var(--ease);
 }
 .player:hover .player__ghost { transform: scale(1.08); color: rgba(166, 255, 26, 0.12); }
+.player__photo {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: top center;
+  z-index: 1; opacity: 0;
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+}
+.player__photo.is-loaded { opacity: 1; }
+.player:hover .player__photo { transform: scale(1.05); }
 .player__num {
   position: absolute; top: 16px; left: 16px;
   font-family: var(--f-display);
