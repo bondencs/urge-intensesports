@@ -154,20 +154,20 @@
 
         <div class="stats reveal" data-reveal>
           <div class="stat">
-            <span class="stat__num" data-count="248" data-suffix="">0</span>
-            <span class="stat__label">Maps Played</span>
+            <span class="stat__num" data-stat="played" data-count="0" data-suffix="">0</span>
+            <span class="stat__label">Matches Played</span>
           </div>
           <div class="stat">
-            <span class="stat__num" data-count="71" data-suffix="%">0</span>
+            <span class="stat__num" data-stat="winRate" data-count="0" data-suffix="%">0</span>
             <span class="stat__label">Win Rate</span>
           </div>
           <div class="stat">
-            <span class="stat__num" data-count="12" data-suffix="">0</span>
-            <span class="stat__label">Titles</span>
+            <span class="stat__num" data-stat="mapsPlayed" data-count="0" data-suffix="">0</span>
+            <span class="stat__label">Maps Played</span>
           </div>
           <div class="stat">
-            <span class="stat__num" data-count="5" data-suffix="">0</span>
-            <span class="stat__label">Nations Faced</span>
+            <span class="stat__num" data-stat="mapsWon" data-count="0" data-suffix="">0</span>
+            <span class="stat__label">Maps Won</span>
           </div>
         </div>
       </div>
@@ -183,7 +183,7 @@
 
         <div class="roster__grid">
           <!-- Player card template repeated -->
-          <article class="player reveal" data-reveal data-initial="b" style="--accent-img: linear-gradient(160deg,#1c2410,#0c0d0a);">
+          <article class="player reveal" data-reveal data-initial="b" data-user="16206" style="--accent-img: linear-gradient(160deg,#1c2410,#0c0d0a);">
             <div class="player__media">
               <span class="player__ghost">B</span>
               <span class="player__num">01</span>
@@ -203,7 +203,7 @@
             </div>
           </article>
 
-          <article class="player reveal" data-reveal data-delay="1" data-initial="z">
+          <article class="player reveal" data-reveal data-delay="1" data-initial="z" data-user="68474">
             <div class="player__media">
               <span class="player__ghost">Z</span>
               <span class="player__num">02</span>
@@ -223,7 +223,7 @@
             </div>
           </article>
 
-          <article class="player player--featured reveal" data-reveal data-delay="2" data-initial="t">
+          <article class="player player--featured reveal" data-reveal data-delay="2" data-initial="t" data-user="136201">
             <div class="player__media">
               <span class="player__ghost">T</span>
               <span class="player__num">03</span>
@@ -243,7 +243,7 @@
             </div>
           </article>
 
-          <article class="player reveal" data-reveal data-delay="3" data-initial="h">
+          <article class="player reveal" data-reveal data-delay="3" data-initial="h" data-user="132636">
             <div class="player__media">
               <span class="player__ghost">H</span>
               <span class="player__num">04</span>
@@ -263,7 +263,7 @@
             </div>
           </article>
 
-          <article class="player reveal" data-reveal data-delay="4" data-initial="j">
+          <article class="player reveal" data-reveal data-delay="4" data-initial="j" data-user="139296">
             <div class="player__media">
               <span class="player__ghost">J</span>
               <span class="player__num">05</span>
@@ -383,40 +383,22 @@
           <h2 class="section__title reveal" data-reveal>EARNED, <span class="accent">NOT GIVEN</span></h2>
         </div>
 
-        <div class="timeline">
-          <div class="tl-item reveal" data-reveal>
-            <span class="tl-year">2025</span>
-            <div class="tl-card">
-              <span class="tl-place tl-place--gold">1ST</span>
-              <h3>Nordic Masters — Spring</h3>
-              <p>Took the bracket without dropping a single map in playoffs.</p>
-            </div>
+        <div class="trophy reveal" data-reveal>
+          <div class="trophy__badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 4h12v4a6 6 0 0 1-12 0V4Z"/>
+              <path d="M6 6H3v1a4 4 0 0 0 4 4M18 6h3v1a4 4 0 0 1-4 4"/>
+              <path d="M9 14.5V17M15 14.5V17M8 21h8M9 21v-1a3 3 0 0 1 6 0v1"/>
+            </svg>
           </div>
-          <div class="tl-item reveal" data-reveal data-delay="1">
-            <span class="tl-year">2025</span>
-            <div class="tl-card">
-              <span class="tl-place tl-place--silver">2ND</span>
-              <h3>ESL Challenger League</h3>
-              <p>Runner-up after a five-map grand final thriller.</p>
-            </div>
-          </div>
-          <div class="tl-item reveal" data-reveal data-delay="2">
-            <span class="tl-year">2024</span>
-            <div class="tl-card">
-              <span class="tl-place tl-place--gold">1ST</span>
-              <h3>Scandinavian Open</h3>
-              <p>First major title as a complete roster.</p>
-            </div>
-          </div>
-          <div class="tl-item reveal" data-reveal data-delay="3">
-            <span class="tl-year">2024</span>
-            <div class="tl-card">
-              <span class="tl-place tl-place--bronze">3RD</span>
-              <h3>Online Pro Circuit</h3>
-              <p>Debut podium finish that put us on the map.</p>
-            </div>
+          <div class="trophy__body">
+            <span class="trophy__tag">Promotion Won</span>
+            <h3>Climbed from 4. Division to 3. Division</h3>
+            <p>Earned our spot in the higher tier of Komplettligaen — promotion secured on the server, not handed to us.</p>
+            <span class="trophy__meta">Komplettligaen · Counter-Strike 2</span>
           </div>
         </div>
+        <p class="trophy__foot reveal" data-reveal>More silverware incoming. <span class="accent">#URGEUP</span></p>
       </div>
     </section>
 

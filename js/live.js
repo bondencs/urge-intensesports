@@ -1,33 +1,37 @@
 /* =========================================================
-   URGE INTENSESPORTS — live matches + on-demand stats
-   (Good Game Arena)
+   URGE INTENSESPORTS — live data (Good Game Arena)
 
-   - /api/matches gives real fixtures & results (token hidden).
-   - Clicking a result lazy-loads THAT match's stats via the
-     /api/gg proxy (one call, cached) and shows a scoreboard.
-   - If anything is unreachable, the page keeps its static
-     placeholders — it never breaks.
+   - /api/matches  → real fixtures, results, and a career summary
+                     (feeds the "About" stat counters).
+   - Click a result → /api/gg match detail + stats: per-map
+     scores + BOTH teams' scoreboards (lazy, cached).
+   - Click a player → /api/player-stats: that player's aggregated
+     recent form (lazy, cached).
 
-   Roster stays curated/static on purpose: the API roster has
-   no "active" flag, so it can't tell starters from subs/staff.
+   Everything degrades gracefully to the static placeholders if
+   the API is unreachable (local preview, no token, etc.).
    ========================================================= */
 (function () {
   'use strict';
 
   const $ = (s, c = document) => c.querySelector(s);
   const TEAM = 'Urge Intensesports';
-  const RESULTS = {};       // match id -> normalized match
-  const STATS_CACHE = {};   // match id -> players[]
+  const RESULTS = {};          // match id -> normalized match
+  const STATS_CACHE = {};      // match id -> players[]
+  const MATCH_CACHE = {};      // match id -> detail (matchupmaps)
+  let PLAYER_STATS = null;     // [] aggregated player form
 
-  /* ---------------- matches ---------------- */
+  /* ---------------- matches + summary ---------------- */
   async function loadMatches() {
     let data;
     try {
       const r = await fetch('/api/matches', { headers: { Accept: 'application/json' } });
-      if (!r.ok) return;                 // keep placeholders
+      if (!r.ok) return;
       data = await r.json();
-    } catch (e) { return; }              // keep placeholders
+    } catch (e) { return; }
     if (!data || data.error) return;
+
+    if (data.summary) applySummary(data.summary);
 
     const upcoming = Array.isArray(data.upcoming) ? data.upcoming : [];
     const results = Array.isArray(data.results) ? data.results : [];
@@ -40,6 +44,16 @@
     setPanel('results', results.length
       ? results.map(resultCard).join('')
       : emptyCard('No results to show yet.'));
+  }
+
+  function applySummary(s) {
+    const map = { played: s.played, winRate: s.winRate, mapsPlayed: s.mapsPlayed, mapsWon: s.mapsWon };
+    Object.keys(map).forEach((k) => {
+      const el = document.querySelector('[data-stat="' + k + '"]');
+      if (!el || map[k] == null) return;
+      el.dataset.count = map[k];                       // animated counter will target this
+      el.textContent = map[k] + (el.dataset.suffix || ''); // and a correct value if it already ran
+    });
   }
 
   function setPanel(name, html) { const p = $('[data-panel="' + name + '"]'); if (p) p.innerHTML = html; }
@@ -72,9 +86,8 @@
 
   const emptyCard = (msg) => '<div class="match__empty">' + esc(msg) + '</div>';
 
-  /* ---------------- stats modal ---------------- */
+  /* ---------------- shared modal shell ---------------- */
   let modal, lastFocus = null;
-
   function ensureModal() {
     if (modal) return modal;
     modal = document.createElement('div');
@@ -82,7 +95,7 @@
     modal.hidden = true;
     modal.innerHTML =
       '<div class="smodal__backdrop" data-close></div>' +
-      '<div class="smodal__panel" role="dialog" aria-modal="true" aria-label="Match statistics">' +
+      '<div class="smodal__panel" role="dialog" aria-modal="true" aria-label="Statistics">' +
         '<button class="smodal__close" data-close aria-label="Close">&times;</button>' +
         '<div class="smodal__head"></div>' +
         '<div class="smodal__body"></div>' +
@@ -106,37 +119,32 @@
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
 
+  /* ---------------- match stats modal ---------------- */
   async function openStats(id) {
     const m = RESULTS[id];
     if (!m) return;
     ensureModal();
-    $('.smodal__head', modal).innerHTML = statsHead(m);
+    $('.smodal__head', modal).innerHTML = matchHead(m);
     $('.smodal__body', modal).innerHTML = '<div class="smodal__loading">Loading stats…</div>';
     openModal();
 
-    let players;
-    try { players = await fetchStats(id); }
-    catch (e) {
+    let detail, players;
+    try {
+      [detail, players] = await Promise.all([fetchMatch(id), fetchStats(id)]);
+    } catch (e) {
       $('.smodal__body', modal).innerHTML = '<div class="smodal__loading">Stats aren\'t available for this match.</div>';
       return;
     }
-    let ours = players.filter((p) => p.side === m.ourSide);
-    if (!ours.length) ours = players;
-    ours.sort((a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0));
-    $('.smodal__body', modal).innerHTML = ours.length ? statsTable(ours) : '<div class="smodal__loading">No player stats recorded.</div>';
+    const ours = players.filter((p) => p.side === m.ourSide).sort(byRating);
+    const theirs = players.filter((p) => p.side !== m.ourSide).sort(byRating);
+
+    let html = mapsRow(detail, m.ourSide);
+    if (ours.length) html += teamBlock(TEAM, ours);
+    if (theirs.length) html += teamBlock(m.opponent, theirs);
+    $('.smodal__body', modal).innerHTML = html || '<div class="smodal__loading">No player stats recorded.</div>';
   }
 
-  async function fetchStats(id) {
-    if (STATS_CACHE[id]) return STATS_CACHE[id];
-    const r = await fetch('/api/gg?path=matchup/' + encodeURIComponent(id) + '/stats', { headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error('stats ' + r.status);
-    const data = await r.json();
-    const arr = Array.isArray(data) ? data : (data && data.data) || [];
-    STATS_CACHE[id] = arr;
-    return arr;
-  }
-
-  function statsHead(m) {
+  function matchHead(m) {
     const scCls = m.result === 'win' ? ' is-good' : m.result === 'loss' ? ' is-bad' : '';
     const meta = [m.event, m.division, fmtDate(m.date)].filter(Boolean).join(' · ');
     return '<div class="smodal__score">' +
@@ -149,6 +157,23 @@
       '<div class="smodal__meta">' + esc(meta) + '</div>' +
       (m.url ? '<a class="smodal__link" href="' + esc(m.url) + '" target="_blank" rel="noopener">View full match on GG Arena ↗</a>' : '');
   }
+
+  function mapsRow(detail, ourSide) {
+    const maps = (detail && detail.matchupmaps) || [];
+    if (!maps.length) return '';
+    const chips = maps.map((mp, i) => {
+      const our = ourSide === 'home' ? mp.home_score : mp.away_score;
+      const their = ourSide === 'home' ? mp.away_score : mp.home_score;
+      const name = (mp.resource && mp.resource.name) || ('Map ' + (i + 1));
+      const cls = our > their ? 'is-good' : our < their ? 'is-bad' : '';
+      return '<div class="map-chip"><span class="map-chip__name">' + esc(name) + '</span>' +
+        '<span class="map-chip__score ' + cls + '">' + sc(our) + '–' + sc(their) + '</span></div>';
+    }).join('');
+    return '<div class="maps-row">' + chips + '</div>';
+  }
+
+  const teamBlock = (label, players) =>
+    '<div class="team-stats"><div class="team-stats__label">' + esc(label) + '</div>' + statsTable(players) + '</div>';
 
   function statsTable(players) {
     const rows = players.map((p) => {
@@ -178,14 +203,94 @@
       '<tbody>' + rows + '</tbody></table></div>';
   }
 
-  /* open stats on result click; let upcoming <a> cards navigate normally */
+  /* ---------------- player form modal ---------------- */
+  async function openPlayer(userId, displayName) {
+    ensureModal();
+    $('.smodal__head', modal).innerHTML = '';
+    $('.smodal__body', modal).innerHTML = '<div class="smodal__loading">Loading player stats…</div>';
+    openModal();
+
+    if (!PLAYER_STATS) {
+      try {
+        const r = await fetch('/api/player-stats', { headers: { Accept: 'application/json' } });
+        PLAYER_STATS = r.ok ? ((await r.json()).players || []) : [];
+      } catch (e) { PLAYER_STATS = []; }
+    }
+    const p = PLAYER_STATS.find((x) => String(x.id) === String(userId));
+    if (!p) {
+      $('.smodal__body', modal).innerHTML = '<div class="smodal__loading">No recent match stats for ' + esc(displayName || 'this player') + ' yet.</div>';
+      return;
+    }
+    $('.smodal__head', modal).innerHTML = playerHead(p, displayName);
+    $('.smodal__body', modal).innerHTML = playerBody(p);
+  }
+
+  function playerHead(p, displayName) {
+    const name = displayName || p.name;
+    return '<div class="phead">' +
+        (p.avatar ? '<img class="phead__ava" src="' + esc(p.avatar) + '" alt="">' : '') +
+        '<div><h3 class="phead__name">' + esc(name) + flagSpan(p.country) + '</h3>' +
+        '<span class="phead__sub">Recent form · ' + p.matches + ' matches · ' + p.maps + ' maps</span></div>' +
+      '</div>';
+  }
+
+  function playerBody(p) {
+    const rc = p.rating >= 1.1 ? ' is-good' : p.rating != null && p.rating < 0.95 ? ' is-bad' : '';
+    const cells = [
+      ['Rating', fix2(p.rating), rc],
+      ['K/D', fix2(p.kd), p.kd >= 1 ? ' is-good' : ' is-bad'],
+      ['ADR', p.adr, ''],
+      ['HS%', p.hsPct + '%', ''],
+      ['KAST', p.kastPct + '%', ''],
+      ['Opening', p.openingPct + '%', ''],
+      ['Clutches', p.clutches, ''],
+      ['Kills', p.kills, ''],
+      ['Deaths', p.deaths, ''],
+    ];
+    const grid = cells.map((c) =>
+      '<div class="pstat"><span class="pstat__val' + c[2] + '">' + c[1] + '</span><span class="pstat__lab">' + c[0] + '</span></div>'
+    ).join('');
+    const steam = p.steam
+      ? '<a class="smodal__link" href="https://steamcommunity.com/profiles/' + esc(p.steam) + '" target="_blank" rel="noopener">Steam profile ↗</a>'
+      : '';
+    return '<div class="pstat-grid">' + grid + '</div>' + steam;
+  }
+
+  /* ---------------- click delegation ---------------- */
   document.addEventListener('click', (e) => {
-    const card = e.target.closest && e.target.closest('.match[data-id]');
-    if (card) { e.preventDefault(); openStats(card.getAttribute('data-id')); }
+    if (!e.target.closest) return;
+    const result = e.target.closest('.match[data-id]');
+    if (result) { e.preventDefault(); openStats(result.getAttribute('data-id')); return; }
+    if (e.target.closest('.player a')) return;     // let social/Steam links work
+    const card = e.target.closest('.player[data-user]');
+    if (card) {
+      const nameEl = card.querySelector('.player__name');
+      openPlayer(card.getAttribute('data-user'), nameEl ? nameEl.textContent : '');
+    }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
-  /* ---------------- helpers ---------------- */
+  /* ---------------- fetch helpers ---------------- */
+  async function fetchStats(id) {
+    if (STATS_CACHE[id]) return STATS_CACHE[id];
+    const r = await fetch('/api/gg?path=matchup/' + encodeURIComponent(id) + '/stats', { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error('stats ' + r.status);
+    const data = await r.json();
+    const arr = Array.isArray(data) ? data : (data && data.data) || [];
+    STATS_CACHE[id] = arr;
+    return arr;
+  }
+  async function fetchMatch(id) {
+    if (MATCH_CACHE[id]) return MATCH_CACHE[id];
+    try {
+      const r = await fetch('/api/gg?path=matchup/' + encodeURIComponent(id), { headers: { Accept: 'application/json' } });
+      MATCH_CACHE[id] = r.ok ? await r.json() : {};
+    } catch (e) { MATCH_CACHE[id] = {}; }
+    return MATCH_CACHE[id];
+  }
+
+  /* ---------------- small helpers ---------------- */
+  const byRating = (a, b) => (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0);
   const sc = (n) => (n == null ? '–' : n);
   const numOr = (n) => (n == null ? '–' : n);
   const fix2 = (v) => { const n = parseFloat(v); return isNaN(n) ? '–' : n.toFixed(2); };

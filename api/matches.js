@@ -35,9 +35,27 @@ module.exports = async (req, res) => {
       .sort((a, b) => b.ts - a.ts)
       .slice(0, 12); // most recent dozen — the team has 100+ historical matches
 
+    // Real career summary, computed over ALL finished matches (not just the shown 12).
+    const finishedAll = matches.filter((m) => m.finished);
+    let wins = 0, losses = 0, mapsPlayed = 0, mapsWon = 0;
+    for (const m of finishedAll) {
+      if (m.result === 'win') wins++;
+      else if (m.result === 'loss') losses++;
+      if (m.ourScore != null && m.theirScore != null) {
+        mapsPlayed += m.ourScore + m.theirScore;
+        mapsWon += m.ourScore;
+      }
+    }
+    const summary = {
+      played: finishedAll.length,
+      wins, losses,
+      winRate: wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0,
+      mapsPlayed, mapsWon,
+    };
+
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1800');
-    return res.status(200).json({ upcoming, results, count: matches.length });
+    return res.status(200).json({ upcoming, results, summary, count: matches.length });
   } catch (err) {
     return fail(res, err.statusCode || 502, err.message || 'Failed to load matches.');
   }
