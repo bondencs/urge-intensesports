@@ -12,6 +12,7 @@
    Articles live in a single KV key ("articles") as a JSON array.
    ========================================================= */
 
+// (rebuild to pick up KV env vars)
 const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const ADMIN = process.env.ADMIN_PASSWORD;
