@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Admin — Urge Intensesports</title>
+  <link rel="icon" type="image/png" href="assets/images/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <canvas id="bgCanvas" class="bg-canvas" aria-hidden="true"></canvas>
+
+  <div class="admin">
+    <header class="admin__bar">
+      <a class="admin__brand" href="index.html">URGE <em>ADMIN</em></a>
+      <div class="admin__bar-actions">
+        <a class="admin__link" href="news.html" target="_blank">View news ↗</a>
+        <button class="btn btn--ghost admin__logout" id="logoutBtn" hidden>Log out</button>
+      </div>
+    </header>
+
+    <!-- Login -->
+    <section class="admin__login" id="loginView">
+      <form class="admin__login-card" id="loginForm">
+        <h1>Newsroom Login</h1>
+        <p>Enter the admin password to manage news.</p>
+        <div class="field">
+          <label for="pw">Admin password</label>
+          <input type="password" id="pw" autocomplete="current-password" required />
+        </div>
+        <button class="btn btn--primary btn--block" type="submit"><span>Enter</span></button>
+        <p class="admin__note" id="loginNote" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- App -->
+    <section class="admin__app" id="appView" hidden>
+      <div class="admin__toolbar">
+        <h1>News articles</h1>
+        <div class="admin__toolbar-actions">
+          <button class="btn btn--ghost" id="refreshBtn"><span>Refresh</span></button>
+          <button class="btn btn--primary" id="newBtn"><span>+ New article</span></button>
+        </div>
+      </div>
+      <div class="admin__list" id="list"><div class="news-loading">Loading…</div></div>
+    </section>
+
+    <!-- Editor (overlay) -->
+    <div class="editor" id="editor" hidden>
+      <div class="editor__backdrop" data-eclose></div>
+      <form class="editor__panel" id="editorForm">
+        <button type="button" class="smodal__close" data-eclose aria-label="Close">&times;</button>
+        <h2 id="editorTitle">New article</h2>
+        <div class="field"><label for="f-title">Title</label><input id="f-title" required /></div>
+        <div class="editor__row">
+          <div class="field"><label for="f-category">Category</label>
+            <select id="f-category">
+              <option>News</option><option>Match Recap</option><option>Match Preview</option>
+              <option>Roster</option><option>Announcement</option><option>Season</option>
+            </select>
+          </div>
+          <div class="field"><label for="f-status">Status</label>
+            <select id="f-status"><option value="draft">Draft</option><option value="published">Published</option></select>
+          </div>
+        </div>
+        <div class="field"><label for="f-image">Image URL (optional)</label><input id="f-image" placeholder="https://…" /></div>
+        <div class="field"><label for="f-excerpt">Excerpt (short summary)</label><textarea id="f-excerpt" rows="2"></textarea></div>
+        <div class="field"><label for="f-body">Body (Markdown: ## heading, **bold**, - list, [link](url))</label><textarea id="f-body" rows="12"></textarea></div>
+        <div class="editor__actions">
+          <button type="button" class="btn btn--ghost" data-eclose><span>Cancel</span></button>
+          <button type="submit" class="btn btn--primary"><span>Save</span></button>
+        </div>
+        <p class="admin__note" id="editorNote" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0A0B0D" />
+  <title>News — Urge Intensesports</title>
+  <meta name="description" content="Latest news, match recaps and announcements from Urge Intensesports CS2." />
+  <link rel="icon" type="image/png" href="assets/images/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <canvas id="bgCanvas" class="bg-canvas" aria-hidden="true"></canvas>
+
+  <header class="nav is-scrolled" id="nav">
+    <div class="container nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="Urge Intensesports home">
+        <img src="assets/images/logo.png" alt="Urge Intensesports logo" class="nav__logo"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+        <span class="nav__brand-fallback" style="display:none;">UI</span>
+        <span class="nav__brand-text">URGE <em>INTENSESPORTS</em></span>
+      </a>
+      <nav class="nav__links" id="navLinks" aria-label="Primary">
+        <a href="index.html#about">About</a>
+        <a href="index.html#roster">Team</a>
+        <a href="index.html#matches">Matches</a>
+        <a href="news.html">News</a>
+        <a href="index.html#contact" class="nav__cta">Contact</a>
+      </nav>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="news-main">
+    <div class="container">
+      <div class="section__head news-head">
+        <p class="eyebrow"><span class="eyebrow__dot"></span> The Newsroom</p>
+        <h1 class="section__title">URGE <span class="accent">NEWS</span></h1>
+      </div>
+      <div id="newsRoot" class="news-root">
+        <div class="news-loading">Loading news…</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <img src="assets/images/logo.png" alt="Urge Intensesports" class="footer__logo" onerror="this.style.display='none';" />
+        <div><strong>URGE INTENSESPORTS</strong><span>Professional CS2 · #URGEUP</span></div>
+      </div>
+      <nav class="footer__nav" aria-label="Footer">
+        <a href="index.html#about">About</a>
+        <a href="index.html#roster">Team</a>
+        <a href="index.html#matches">Matches</a>
+        <a href="news.html">News</a>
+      </nav>
+      <div class="socials socials--sm">
+        <a href="#" aria-label="X / Twitter" data-social="x"></a>
+        <a href="#" aria-label="Instagram" data-social="ig"></a>
+        <a href="#" aria-label="Twitch" data-social="twitch"></a>
+        <a href="#" aria-label="Discord" data-social="discord"></a>
+      </div>
+    </div>
+    <div class="footer__bar">
+      <span>© <span id="year">2025</span> Urge Intensesports. All rights reserved.</span>
+      <span>Built for the clutch.</span>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/news.js"></script>
+</body>
+</html>
