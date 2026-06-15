@@ -142,26 +142,28 @@
     });
   }
 
-  /* ---------- Hero particle network ---------- */
-  const canvas = $('#heroCanvas');
+  /* ---------- Site-wide particle network backdrop ---------- */
+  const canvas = $('#bgCanvas');
   if (canvas && !reduceMotion) {
     const ctx = canvas.getContext('2d');
     let w, h, dpr, particles, raf;
-    const COUNT = window.innerWidth < 760 ? 34 : 70;
-    const LINK = 140;
+    const LINK = 150;
+    const count = () => Math.max(36, Math.min(120, Math.round((window.innerWidth * window.innerHeight) / 16000)));
 
     const resize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = canvas.width = canvas.offsetWidth * dpr;
-      h = canvas.height = canvas.offsetHeight * dpr;
+      w = canvas.width = window.innerWidth * dpr;
+      h = canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
     };
     const make = () => {
-      particles = Array.from({ length: COUNT }, () => ({
+      particles = Array.from({ length: count() }, () => ({
         x: Math.random() * w,
         y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.4 * dpr,
-        vy: (Math.random() - 0.5) * 0.4 * dpr,
-        r: (Math.random() * 1.6 + 0.6) * dpr
+        vx: (Math.random() - 0.5) * 0.32 * dpr,
+        vy: (Math.random() - 0.5) * 0.32 * dpr,
+        r: (Math.random() * 1.5 + 0.5) * dpr
       }));
     };
     const link = LINK;
@@ -197,14 +199,10 @@
     init();
     let rt;
     window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(init, 200); });
-    // pause when hero off-screen (saves battery)
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver((entries) => {
-        entries.forEach(en => {
-          if (en.isIntersecting) { if (!raf) draw(); }
-          else { cancelAnimationFrame(raf); raf = null; }
-        });
-      }, { threshold: 0 }).observe(canvas);
-    }
+    // pause when the tab is hidden (saves battery/CPU)
+    document.addEventListener('visibilitychange', () => {
+      cancelAnimationFrame(raf);
+      if (!document.hidden) draw();
+    });
   }
 })();

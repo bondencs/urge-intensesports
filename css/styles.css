@@ -372,7 +372,7 @@ p { color: var(--muted); }
   padding-top: 90px;
   overflow: hidden;
 }
-.hero__canvas { position: absolute; inset: 0; z-index: 0; opacity: 0.9; }
+.bg-canvas { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.6; }
 .hero__grid {
   position: absolute; inset: 0; z-index: 0;
   background-image:
@@ -397,6 +397,8 @@ p { color: var(--muted); }
   line-height: 0.84;
   margin: 8px 0 22px;
 }
+.hero__title-row { display: flex; align-items: center; gap: clamp(10px, 3vw, 30px); }
+.hero__logo { height: clamp(78px, 14vw, 172px); width: auto; flex: none; filter: drop-shadow(0 10px 34px rgba(0, 0, 0, 0.55)); }
 .hero__title .glitch {
   display: block;
   font-size: clamp(4.5rem, 18vw, 13rem);

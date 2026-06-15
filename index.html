@@ -30,6 +30,8 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
+  <!-- animated network backdrop (whole page) -->
+  <canvas id="bgCanvas" class="bg-canvas" aria-hidden="true"></canvas>
 
   <!-- ============ PRELOADER ============ -->
   <div class="preloader" id="preloader" aria-hidden="true">
@@ -71,7 +73,6 @@
   <main>
     <!-- ============ HERO ============ -->
     <section class="hero" id="home">
-      <canvas class="hero__canvas" id="heroCanvas" aria-hidden="true"></canvas>
       <div class="hero__grid" aria-hidden="true"></div>
       <div class="hero__glow" aria-hidden="true"></div>
 
@@ -81,8 +82,11 @@
         </p>
 
         <h1 class="hero__title">
-          <span class="glitch reveal" data-reveal data-text="URGE">URGE</span>
-          <span class="hero__title-2 reveal" data-reveal data-delay="1">INTENSESPORTS</span>
+          <span class="hero__title-row">
+            <img src="assets/images/logo.png" alt="Urge Intensesports" class="hero__logo reveal" data-reveal />
+            <span class="glitch reveal" data-reveal data-text="URGE" data-delay="1">URGE</span>
+          </span>
+          <span class="hero__title-2 reveal" data-reveal data-delay="2">INTENSESPORTS</span>
         </h1>
 
         <p class="hero__sub reveal" data-reveal data-delay="2">
