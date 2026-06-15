@@ -968,3 +968,65 @@ a.match { text-decoration: none; color: inherit; }
   [data-reveal] { opacity: 1; transform: none; }
   .marquee__track, .sponsors__track { animation: none; }
 }
+
+/* =========================================================
+   MATCH STATS MODAL
+   ========================================================= */
+button.match { width: 100%; font: inherit; cursor: pointer; text-align: left; }
+
+.smodal[hidden] { display: none; }
+.smodal {
+  position: fixed; inset: 0; z-index: 300;
+  display: grid; place-items: center; padding: 18px;
+}
+.smodal__backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(5px); }
+.smodal__panel {
+  position: relative;
+  width: min(840px, 100%);
+  max-height: 88vh; overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  padding: clamp(22px, 4vw, 36px);
+  box-shadow: var(--shadow);
+  animation: smodal-in 0.3s var(--ease);
+}
+@keyframes smodal-in { from { opacity: 0; transform: translateY(18px) scale(0.98); } to { opacity: 1; transform: none; } }
+.smodal__close {
+  position: absolute; top: 14px; right: 14px;
+  width: 38px; height: 38px; border-radius: 9px;
+  border: 1px solid var(--line-2); color: var(--muted);
+  font-size: 1.5rem; line-height: 1;
+  transition: all 0.25s var(--ease);
+}
+.smodal__close:hover { color: #0a0a0a; background: var(--green); border-color: var(--green); }
+.smodal__score {
+  display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;
+  font-family: var(--f-display); font-size: clamp(1.4rem, 4vw, 2rem); letter-spacing: 1px;
+  margin: 4px 0 10px; text-align: center;
+}
+.smodal__sc { padding: 2px 16px; background: var(--bg); border-radius: 8px; color: var(--text); }
+.smodal__sc.is-good { color: var(--green); }
+.smodal__sc.is-bad { color: var(--orange); }
+.smodal__team--opp { color: var(--muted); display: inline-flex; align-items: center; }
+.smodal__meta { text-align: center; color: var(--muted); font-family: var(--f-head); letter-spacing: 1.5px; font-size: 0.8rem; text-transform: uppercase; }
+.smodal__link { display: block; text-align: center; margin: 12px 0 22px; color: var(--green); font-family: var(--f-head); font-weight: 600; letter-spacing: 1px; font-size: 0.85rem; }
+.smodal__link:hover { text-decoration: underline; }
+.smodal__loading { text-align: center; padding: 44px 10px; color: var(--muted); font-family: var(--f-head); letter-spacing: 1px; }
+
+.stt-wrap { overflow-x: auto; }
+.stt { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 460px; }
+.stt th { text-transform: uppercase; letter-spacing: 1px; font-size: 0.68rem; color: var(--muted); text-align: right; padding: 10px 9px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.stt th:first-child { text-align: left; }
+.stt td { padding: 11px 9px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.stt td:first-child { text-align: left; }
+.stt tbody tr:hover { background: var(--surface-2); }
+.stt__player { display: flex; align-items: center; gap: 10px; }
+.stt__ava { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--bg); flex: none; }
+.stt__name { font-family: var(--f-head); font-weight: 600; }
+.stt__flag { width: 18px !important; height: 12px !important; }
+.stt__rating { font-family: var(--f-display); font-size: 1.05rem; }
+.stt .is-good { color: var(--green); }
+.stt .is-bad { color: var(--orange); }
+
+@media (max-width: 600px) { .col-opt { display: none; } }

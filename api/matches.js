@@ -86,6 +86,7 @@ function normalize(m) {
   return {
     id: m.id,
     url: m.url || null,
+    ourSide: isHome ? 'home' : 'away',
     opponent: them.team.name || them.name || 'TBD',
     opponentLogo: (them.team.logo && them.team.logo.url) || null,
     event: (m.competition && m.competition.name) || 'Match',
