@@ -1,0 +1,9 @@
+{
+  "name": "urge-intensesports",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Urge Intensesports CS2 team website",
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest"
+  }
+}

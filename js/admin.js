@@ -53,6 +53,20 @@
   /* ---- list ---- */
   $('refreshBtn').addEventListener('click', async () => { const r = await api('GET', '?all=1'); if (r.ok) renderList(await r.json()); });
 
+  $('aiBtn').addEventListener('click', async () => {
+    note('aiNote', 'Generating drafts with AI… this can take ~30s.');
+    try {
+      const r = await fetch('/api/ai-news', { method: 'POST', headers: { 'x-admin-key': KEY, Accept: 'application/json' } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { note('aiNote', j.error || 'AI generation failed.', true); return; }
+      const n = (j.created || []).length;
+      note('aiNote', n
+        ? 'Created ' + n + ' draft' + (n > 1 ? 's' : '') + ' — review and publish them below.'
+        : 'No new matches to write about right now.');
+      const l = await api('GET', '?all=1'); if (l.ok) renderList(await l.json());
+    } catch (e) { note('aiNote', 'AI generation failed (network).', true); }
+  });
+
   function renderList(items) {
     const list = $('list');
     if (!Array.isArray(items) || !items.length) { list.innerHTML = '<div class="news-empty">No articles yet. Hit “New article”.</div>'; return; }
