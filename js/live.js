@@ -307,8 +307,14 @@
   }
 
   /* ---------------- click delegation ---------------- */
+  let standingsLoaded = false;
   document.addEventListener('click', (e) => {
     if (!e.target.closest) return;
+    // League table: fetched the first time the tab is opened.
+    if (e.target.closest('.matches__tab[data-tab="standings"]') && !standingsLoaded) {
+      standingsLoaded = true;
+      loadStandings();
+    }
     const result = e.target.closest('.match[data-id]');
     if (result) { e.preventDefault(); openStats(result.getAttribute('data-id')); return; }
     if (e.target.closest('.player a')) return;     // let social/Steam links work
@@ -366,15 +372,6 @@
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* run */
-  function start() {
-    loadMatches();
-    // The table is only fetched the first time someone opens that tab.
-    const tab = document.querySelector('.matches__tab[data-tab="standings"]');
-    if (tab) tab.addEventListener('click', function once() {
-      tab.removeEventListener('click', once);
-      loadStandings();
-    });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
-  else start();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadMatches);
+  else loadMatches();
 })();
