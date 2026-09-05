@@ -627,17 +627,24 @@ p { color: var(--muted); }
   color: var(--muted);
   margin: 6px 0 16px;
 }
-.player__socials { display: flex; gap: 10px; }
-.player__socials a {
-  width: 34px; height: 34px;
-  display: inline-flex; align-items: center; justify-content: center;
+/* Profile buttons: Steam + FACEIT, in each platform's own colour on hover */
+.player__links { display: flex; flex-wrap: wrap; gap: 8px; }
+.plink {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 13px;
   border: 1px solid var(--line-2);
   border-radius: 8px;
-  color: var(--muted);
-  transition: all 0.25s var(--ease);
+  font-family: var(--f-head);
+  font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  font-size: 0.72rem; color: var(--muted);
+  transition: color 0.25s var(--ease), background 0.25s var(--ease),
+              border-color 0.25s var(--ease), transform 0.25s var(--ease);
 }
-.player__socials a svg { width: 16px; height: 16px; }
-.player__socials a:hover { color: #0a0a0a; background: var(--green); border-color: var(--green); }
+.plink__icon { display: inline-flex; }
+.plink__icon svg { width: 15px; height: 15px; display: block; }
+.plink:hover { transform: translateY(-2px); }
+.plink--steam:hover { color: #0a0a0a; background: var(--green); border-color: var(--green); }
+.plink--faceit:hover { color: #0a0a0a; background: var(--orange); border-color: var(--orange); }
 
 .player--featured { border-color: rgba(166, 255, 26, 0.25); }
 .player--featured .player__media {
