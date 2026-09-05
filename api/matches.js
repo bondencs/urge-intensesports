@@ -15,8 +15,18 @@
 const BASE = (process.env.GGARENA_BASE || 'https://www.ggarena.no/api/paradise/v2').replace(/\/+$/, '');
 const TOKEN = (process.env.GGARENA_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
 
-// Our GG Arena team id (not secret). Override with an env var if it ever changes.
-const TEAM_ID = Number(process.env.GGARENA_TEAM_ID || 162570);
+// Our GG Arena team ids (not secret). The CURRENT team comes first; older ids
+// are legacy teams the same squad played under — their matches still count as
+// our history. Override with a comma-separated env var if this ever changes.
+const TEAM_IDS = String(process.env.GGARENA_TEAM_IDS || process.env.GGARENA_TEAM_ID || '205067,162570')
+  .split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n) && n > 0);
+const isUs = (id) => id != null && TEAM_IDS.indexOf(Number(id)) !== -1;
+
+// Current season (Komplettligaen). Used to tag this season's fixtures.
+const COMPETITION_ID = Number(process.env.GGARENA_COMPETITION_ID || 13908);
+const DIVISION_ID = Number(process.env.GGARENA_DIVISION_ID || 18870);
+
+const PER_PAGE = 50;  // the API's page-size param is "limit" (per_page is ignored)
 const MAX_PAGES = 12; // safety cap on pagination
 
 module.exports = async (req, res) => {
@@ -29,7 +39,7 @@ module.exports = async (req, res) => {
     const upcoming = matches
       .filter((m) => !m.finished && !m.cancelled)
       .sort((a, b) => a.ts - b.ts)
-      .slice(0, 8);
+      .slice(0, 10); // a full Komplettligaen season is 9 fixtures
     const results = matches
       .filter((m) => m.finished)
       .sort((a, b) => b.ts - a.ts)
@@ -61,23 +71,27 @@ module.exports = async (req, res) => {
   }
 };
 
-// Page through /matchup and keep only matches that involve our team.
+// Page through /matchup for every team id we've played under, and keep only
+// matches that actually involve us.
 async function fetchTeamMatchups() {
+  const seen = new Set();
   const collected = [];
-  let page = 1;
-  let lastPage = 1;
-  do {
-    // team_id is the real upstream filter; we still filter client-side as a safety net.
-    const data = await gg(`matchup?team_id=${TEAM_ID}&per_page=50&page=${page}`);
-    const list = Array.isArray(data) ? data : (data && data.data) || [];
-    for (const m of list) {
-      const home = m.home_signup && m.home_signup.team && m.home_signup.team.id;
-      const away = m.away_signup && m.away_signup.team && m.away_signup.team.id;
-      if (home === TEAM_ID || away === TEAM_ID) collected.push(m);
-    }
-    lastPage = (data && data.meta && data.meta.last_page) || 1;
-    page++;
-  } while (page <= lastPage && page <= MAX_PAGES);
+  for (const teamId of TEAM_IDS) {
+    let page = 1;
+    let lastPage = 1;
+    do {
+      // team_id is the real upstream filter; we still filter client-side as a safety net.
+      const data = await gg(`matchup?team_id=${teamId}&limit=${PER_PAGE}&page=${page}`);
+      const list = Array.isArray(data) ? data : (data && data.data) || [];
+      for (const m of list) {
+        const home = m.home_signup && m.home_signup.team && m.home_signup.team.id;
+        const away = m.away_signup && m.away_signup.team && m.away_signup.team.id;
+        if ((isUs(home) || isUs(away)) && !seen.has(m.id)) { seen.add(m.id); collected.push(m); }
+      }
+      lastPage = (data && data.meta && data.meta.last_page) || 1;
+      page++;
+    } while (page <= lastPage && page <= MAX_PAGES);
+  }
   return collected;
 }
 
@@ -94,7 +108,7 @@ async function gg(path) {
 }
 
 function normalize(m) {
-  const isHome = m.home_signup && m.home_signup.team && m.home_signup.team.id === TEAM_ID;
+  const isHome = !!(m.home_signup && m.home_signup.team && isUs(m.home_signup.team.id));
   const them = isHome ? m.away_signup : m.home_signup;
   if (!them || !them.team) return null;
 
@@ -111,6 +125,10 @@ function normalize(m) {
     opponentLogo: (them.team.logo && them.team.logo.url) || null,
     event: (m.competition && m.competition.name) || 'Match',
     division: (m.division && m.division.name) || null,
+    round: m.round_number ? `Round ${m.round_number}` : (m.round_identifier_text || null),
+    // true for fixtures in the season we're currently playing
+    thisSeason: !!(m.division && m.division.id === DIVISION_ID) ||
+                !!(m.competition && m.competition.id === COMPETITION_ID),
     date: m.start_time || null,
     ts: m.start_time ? new Date(String(m.start_time).replace(/\.\d+Z$/, 'Z')).getTime() : 0,
     finished,

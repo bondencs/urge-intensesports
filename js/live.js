@@ -46,6 +46,56 @@
       : emptyCard('No results to show yet.'));
   }
 
+  /* ---------------- league table ---------------- */
+  async function loadStandings() {
+    let d;
+    try {
+      const r = await fetch('/api/standings', { headers: { Accept: 'application/json' } });
+      if (!r.ok) throw new Error('standings ' + r.status);
+      d = await r.json();
+    } catch (e) {
+      setPanel('standings', emptyCard('The league table isn\'t available right now.'));
+      return;
+    }
+    const table = (d && d.table) || [];
+    if (!table.length) { setPanel('standings', emptyCard('No league table for this season yet.')); return; }
+
+    const started = d.rounds && d.rounds.played > 0;
+    const rows = table.map((t, i) =>
+      '<tr' + (t.isUs ? ' class="ltbl__us"' : '') + '>' +
+        '<td class="ltbl__pos">' + (started ? i + 1 : '–') + '</td>' +
+        '<td><span class="ltbl__team">' +
+          (t.logo ? '<img class="match__logo" src="' + esc(t.logo) + '" alt="" loading="lazy">' : '') +
+          '<span class="ltbl__name">' + esc(t.name) + '</span>' +
+        '</span></td>' +
+        '<td>' + t.played + '</td>' +
+        '<td class="ltbl__w">' + t.wins + '</td>' +
+        '<td class="ltbl__l">' + t.losses + '</td>' +
+        '<td class="col-opt">' + t.mapsWon + '–' + t.mapsLost + '</td>' +
+        '<td class="col-opt' + (t.mapDiff > 0 ? ' is-good' : t.mapDiff < 0 ? ' is-bad' : '') + '">' +
+          (t.mapDiff > 0 ? '+' : '') + t.mapDiff + '</td>' +
+      '</tr>'
+    ).join('');
+
+    const comp = (d.competition && d.competition.name) || '';
+    const div = (d.division && d.division.name) || '';
+    const caption = [div, shortEvent(comp)].filter(Boolean).join(' · ');
+    const foot = started
+      ? (d.rounds.played + ' of ' + d.rounds.total + ' matches played')
+      : 'Season hasn\'t started yet — the table updates automatically after every round.';
+
+    setPanel('standings',
+      '<div class="ltbl-wrap">' +
+        (caption ? '<div class="ltbl__cap">' + esc(caption) + '</div>' : '') +
+        '<table class="ltbl">' +
+          '<thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th>' +
+            '<th class="col-opt">Maps</th><th class="col-opt">+/-</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+        '<div class="ltbl__foot">' + esc(foot) + '</div>' +
+      '</div>');
+  }
+
   function applySummary(s) {
     const map = { played: s.played, winRate: s.winRate, mapsPlayed: s.mapsPlayed, mapsWon: s.mapsWon };
     Object.keys(map).forEach((k) => {
@@ -63,7 +113,7 @@
 
   const matchCard = (m) =>
     '<a class="match" href="' + esc(m.url || '#') + '" target="_blank" rel="noopener">' +
-      '<span class="match__event">' + esc(shortEvent(m.event)) + '</span>' +
+      '<span class="match__event">' + esc(eventLabel(m)) + '</span>' +
       '<div class="match__teams"><span class="match__team">' + TEAM + '</span>' +
         '<span class="match__vs">VS</span>' +
         '<span class="match__team match__team--opp">' + logoImg(m) + esc(m.opponent) + '</span></div>' +
@@ -296,6 +346,9 @@
   const fix2 = (v) => { const n = parseFloat(v); return isNaN(n) ? '–' : n.toFixed(2); };
   const pct = (v) => { const n = parseFloat(v); return isNaN(n) ? '–' : Math.round(n * 100) + '%'; };
   function shortEvent(e) { return e ? String(e).split(':')[0].trim() : 'Match'; }
+  function eventLabel(m) {
+    return shortEvent(m.event) + (m.round ? ' · ' + m.round : '');
+  }
   function flagSpan(c) {
     c = String(c || '').toLowerCase();
     const cl = /^(no|nor)/.test(c) ? 'flag-no' : /^(de|ger)/.test(c) ? 'flag-de' : '';
@@ -313,6 +366,15 @@
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* run */
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadMatches);
-  else loadMatches();
+  function start() {
+    loadMatches();
+    // The table is only fetched the first time someone opens that tab.
+    const tab = document.querySelector('.matches__tab[data-tab="standings"]');
+    if (tab) tab.addEventListener('click', function once() {
+      tab.removeEventListener('click', once);
+      loadStandings();
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();

@@ -658,7 +658,7 @@ p { color: var(--muted); }
    MATCHES
    ========================================================= */
 .matches__tabs {
-  display: flex; gap: 8px; justify-content: center; margin-bottom: 32px;
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 32px;
 }
 .matches__tab {
   font-family: var(--f-head);
@@ -1043,6 +1043,44 @@ button.match { width: 100%; font: inherit; cursor: pointer; text-align: left; }
 @media (max-width: 600px) { .col-opt { display: none; } }
 
 /* =========================================================
+   LEAGUE TABLE — live standings for the current division
+   ========================================================= */
+.ltbl-wrap {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: clamp(16px, 3vw, 26px);
+  overflow-x: auto;
+}
+.ltbl__cap {
+  font-family: var(--f-head); text-transform: uppercase; letter-spacing: 2px;
+  font-size: 0.78rem; color: var(--green); margin-bottom: 14px;
+}
+.ltbl { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 290px; }
+.ltbl th {
+  text-transform: uppercase; letter-spacing: 1px; font-size: 0.68rem; color: var(--muted);
+  text-align: right; padding: 10px 9px; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.ltbl th:nth-child(2) { text-align: left; }
+.ltbl td { padding: 12px 9px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.ltbl td:nth-child(2) { text-align: left; width: 99%; }
+.ltbl tbody tr:last-child td { border-bottom: 0; }
+.ltbl tbody tr:hover { background: var(--surface-2); }
+.ltbl__pos { font-family: var(--f-display); font-size: 1.05rem; color: var(--muted); text-align: center !important; width: 34px; }
+.ltbl__team { display: flex; align-items: center; gap: 4px; }
+.ltbl__name { font-family: var(--f-head); font-weight: 600; }
+.ltbl__w { color: var(--green); }
+.ltbl__l { color: var(--muted); }
+.ltbl .is-good { color: var(--green); }
+.ltbl .is-bad { color: var(--orange); }
+.ltbl__us { background: rgba(166, 255, 26, 0.07); }
+.ltbl__us td { border-bottom-color: rgba(166, 255, 26, 0.2); }
+.ltbl__us .ltbl__pos,
+.ltbl__us .ltbl__name { color: var(--green); }
+.ltbl__foot {
+  margin-top: 14px; font-family: var(--f-head); letter-spacing: 1px;
+  font-size: 0.78rem; color: var(--muted); text-align: center;
+}
+
+/* =========================================================
    ACHIEVEMENTS — trophy feature
    ========================================================= */
 .trophy {
@@ -1186,3 +1224,126 @@ button.match { width: 100%; font: inherit; cursor: pointer; text-align: left; }
 .editor__row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .editor__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 @media (max-width: 540px) { .editor__row { grid-template-columns: 1fr; } .arow__actions { width: 100%; } }
+
+/* =========================================================
+   THE KIT — 3D jersey viewer (homepage section)
+   ========================================================= */
+.kit__grid {
+  display: grid;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: center;
+}
+.kit__feats { display: grid; gap: 0.65rem; margin: 1.4rem 0 1.9rem; }
+.kit__feats li {
+  display: flex; align-items: center; gap: 0.85rem;
+  font-family: var(--f-head); font-weight: 600; letter-spacing: 0.01em; color: var(--text);
+}
+.kit__feats li span {
+  font-family: var(--f-display); color: var(--green); font-size: 1.15rem;
+  width: 1.7rem; flex: none; text-align: center;
+}
+.kit__actions { display: flex; align-items: center; gap: 1.3rem; flex-wrap: wrap; }
+.kit__drag {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-family: var(--f-head); font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.12em; font-size: 0.72rem; color: var(--muted-d);
+}
+.kit__drag svg { width: 16px; height: 16px; }
+
+.kit__viz { position: relative; }
+.kit__viz::before {
+  content: ""; position: absolute; inset: -8% -4%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(42% 46% at 50% 46%, rgba(166,255,26,0.18), transparent 70%),
+    radial-gradient(60% 60% at 50% 84%, rgba(255,106,0,0.12), transparent 72%);
+  filter: blur(12px);
+}
+.kit__canvas {
+  position: relative; z-index: 1;
+  width: 100%; height: min(62vh, 600px);
+  cursor: grab; touch-action: pan-y;
+}
+.kit__canvas:active { cursor: grabbing; }
+
+.kit__loader {
+  position: absolute; inset: 0; z-index: 2;
+  display: grid; place-items: center; gap: 1rem;
+  transition: opacity 0.5s ease; pointer-events: none;
+}
+.kit__canvas.is-ready .kit__loader { opacity: 0; }
+.kit__ring {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid rgba(166,255,26,0.18); border-top-color: var(--green);
+  animation: kitspin 0.9s linear infinite;
+}
+.kit__loadtxt {
+  font-family: var(--f-head); letter-spacing: 0.18em; text-transform: uppercase;
+  font-size: 0.72rem; color: var(--muted);
+}
+@keyframes kitspin { to { transform: rotate(360deg); } }
+
+.kit__fallback { position: absolute; inset: 0; display: none; place-items: center; z-index: 3; }
+.kit__fallback img { width: min(78%, 460px); height: auto; filter: drop-shadow(0 24px 50px rgba(0,0,0,0.6)); }
+.kit__canvas.is-failed .kit__fallback { display: grid; }
+.kit__canvas.is-failed .kit__loader { display: none; }
+
+@media (max-width: 860px) {
+  .kit__grid { grid-template-columns: 1fr; }
+  .kit__viz { order: -1; }
+  .kit__canvas { height: min(56vh, 480px); }
+}
+@media (prefers-reduced-motion: reduce) { .kit__ring { animation: none; } }
+
+/* =========================================================
+   THE KIT — animated mockup showcase (2D, CSS 3D flip)
+   ========================================================= */
+.kitfx { position: relative; width: 100%; display: grid; justify-items: center; gap: 1.3rem; perspective: 1500px; }
+.kitfx__glow {
+  position: absolute; inset: -8% 0 2%; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(42% 42% at 50% 44%, rgba(166,255,26,0.22), transparent 70%),
+    radial-gradient(58% 56% at 50% 80%, rgba(255,106,0,0.13), transparent 72%);
+  filter: blur(16px);
+}
+.kitfx__card {
+  position: relative; width: min(100%, 560px); aspect-ratio: 5 / 4;
+  transform-style: preserve-3d; will-change: transform; z-index: 1; cursor: pointer;
+}
+.kitfx__face {
+  position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background-size: contain; background-position: center; background-repeat: no-repeat; overflow: hidden;
+  -webkit-mask-image: radial-gradient(closest-side at 50% 50%, #000 90%, transparent 100%);
+  mask-image: radial-gradient(closest-side at 50% 50%, #000 90%, transparent 100%);
+  filter: drop-shadow(0 26px 48px rgba(0,0,0,0.6));
+}
+.kitfx__face--back { transform: rotateY(180deg); }
+.kitfx__shine {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(102deg, transparent 38%, rgba(255,255,255,0.18) 48%,
+              rgba(255,255,255,0.05) 54%, transparent 64%);
+  transform: translateX(-130%); opacity: 0;
+}
+.kitfx.is-animating .kitfx__shine { animation: kitShine 6.5s ease-in-out infinite; }
+.kitfx.is-animating .kitfx__face--back .kitfx__shine { animation-delay: 3.25s; }
+@keyframes kitShine {
+  0% { transform: translateX(-130%); opacity: 0; }
+  4% { opacity: 1; }
+  15% { transform: translateX(130%); opacity: 1; }
+  16%, 100% { transform: translateX(130%); opacity: 0; }
+}
+.kitfx__toggle {
+  display: inline-flex; gap: 0.35rem; padding: 0.3rem; z-index: 2;
+  border: 1px solid var(--line-2); border-radius: 999px; background: rgba(255,255,255,0.03);
+}
+.kitfx__toggle button {
+  font-family: var(--f-head); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 0.74rem; color: var(--muted); padding: 0.5rem 1.15rem; border-radius: 999px;
+  transition: color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.kitfx__toggle button.is-active { background: var(--green); color: #0a0a0a; }
+.kitfx__hint {
+  display: inline-flex; align-items: center; gap: 0.5rem; font-family: var(--f-head); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.7rem; color: var(--muted-d);
+}
+@media (prefers-reduced-motion: reduce) { .kitfx__shine { display: none; } }

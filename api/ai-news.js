@@ -19,8 +19,12 @@ const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL
 const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const GG_BASE = (process.env.GGARENA_BASE || 'https://www.ggarena.no/api/paradise/v2').replace(/\/+$/, '');
 const GG_TOKEN = (process.env.GGARENA_TOKEN || '').trim().replace(/^Bearer\s+/i, '');
-const TEAM_ID = Number(process.env.GGARENA_TEAM_ID || 162570);
+// Current team first, then legacy team ids the same squad played under.
+const TEAM_IDS = String(process.env.GGARENA_TEAM_IDS || process.env.GGARENA_TEAM_ID || '205067,162570')
+  .split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n) && n > 0);
+const isUs = (id) => id != null && TEAM_IDS.indexOf(Number(id)) !== -1;
 const TEAM_NAME = 'Urge Intensesports';
+const PER_PAGE = 50; // the API's page-size param is "limit"
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = process.env.AI_MODEL || 'claude-opus-4-8'; // override to e.g. claude-haiku-4-5 to cut cost
@@ -86,6 +90,7 @@ async function writeArticle(client, job, stats) {
     opponent: m.opponent,
     competition: m.event,
     division: m.division,
+    round: m.round,
     date_utc: m.date,
   };
   if (job.kind === 'recap') {
@@ -157,18 +162,21 @@ function parseJson(text) {
 /* ---------- Good Game Arena ---------- */
 async function teamMatchups() {
   const out = [];
-  let page = 1, last = 1;
-  do {
-    const data = await gg(`matchup?team_id=${TEAM_ID}&per_page=50&page=${page}`);
-    const list = Array.isArray(data) ? data : (data && data.data) || [];
-    for (const m of list) {
-      const h = m.home_signup && m.home_signup.team && m.home_signup.team.id;
-      const a = m.away_signup && m.away_signup.team && m.away_signup.team.id;
-      if (h === TEAM_ID || a === TEAM_ID) out.push(m);
-    }
-    last = (data && data.meta && data.meta.last_page) || 1;
-    page++;
-  } while (page <= last && page <= MAX_PAGES);
+  const seen = new Set();
+  for (const teamId of TEAM_IDS) {
+    let page = 1, last = 1;
+    do {
+      const data = await gg(`matchup?team_id=${teamId}&limit=${PER_PAGE}&page=${page}`);
+      const list = Array.isArray(data) ? data : (data && data.data) || [];
+      for (const m of list) {
+        const h = m.home_signup && m.home_signup.team && m.home_signup.team.id;
+        const a = m.away_signup && m.away_signup.team && m.away_signup.team.id;
+        if ((isUs(h) || isUs(a)) && !seen.has(m.id)) { seen.add(m.id); out.push(m); }
+      }
+      last = (data && data.meta && data.meta.last_page) || 1;
+      page++;
+    } while (page <= last && page <= MAX_PAGES);
+  }
   return out;
 }
 
@@ -179,7 +187,7 @@ async function fetchOurStats(m) {
 }
 
 function normalizeMatch(m) {
-  const isHome = m.home_signup && m.home_signup.team && m.home_signup.team.id === TEAM_ID;
+  const isHome = !!(m.home_signup && m.home_signup.team && isUs(m.home_signup.team.id));
   const them = isHome ? m.away_signup : m.home_signup;
   if (!them || !them.team) return null;
   const ourScore = isHome ? m.home_score : m.away_score;
@@ -193,6 +201,7 @@ function normalizeMatch(m) {
     opponentLogo: (them.team.logo && them.team.logo.url) || null,
     event: (m.competition && m.competition.name) || 'Match',
     division: (m.division && m.division.name) || null,
+    round: m.round_number ? `Round ${m.round_number}` : (m.round_identifier_text || null),
     date: m.start_time || null,
     ts: m.start_time ? new Date(String(m.start_time).replace(/\.\d+Z$/, 'Z')).getTime() : 0,
     finished,
