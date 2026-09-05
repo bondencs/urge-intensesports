@@ -94,7 +94,7 @@ module.exports = async (req, res) => {
       },
       division: {
         id: (first.division && first.division.id) || divisionId,
-        name: (first.division && first.division.name) || null,
+        name: enDivision((first.division && first.division.name) || null),
       },
       rounds: { played, total: matches.filter((m) => !m.cancelled).length },
       table,
@@ -156,6 +156,26 @@ async function divisionMatchups(divisionId) {
     page++;
   } while (page <= last && page <= MAX_PAGES);
   return out;
+}
+
+/* ---------- Norwegian division names, in English ----------
+   Good Game Arena names divisions in Norwegian ("3. divisjon avd. D"),
+   which reads badly in English copy. The competition name itself
+   (Komplettligaen) is a proper noun and stays as it is. */
+function enDivision(name) {
+  if (!name) return name || null;
+  return String(name).trim()
+    .replace(/(\d+)\.\s*divisjon/gi, (_, n) => ordinal(n) + ' Division')
+    .replace(/\s*\bavd\.?\s*/gi, ', Group ')
+    .replace(/\bsluttspill\b/gi, 'Playoffs')
+    .trim();
+}
+function ordinal(n) {
+  const i = Number(n);
+  if (isNaN(i)) return n;
+  const rest = i % 100;
+  const suffix = ['th', 'st', 'nd', 'rd'][(rest - 20) % 10] || ['th', 'st', 'nd', 'rd'][rest] || 'th';
+  return i + suffix;
 }
 
 async function gg(path) {
