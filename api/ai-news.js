@@ -149,7 +149,8 @@ function matchPrompt(job, stats) {
     competition: m.event,
     division: m.division,
     round: m.round,
-    date_utc: m.date,
+    date: osloDate(m.date),
+    start_time: osloTime(m.date),
   };
   if (job.kind === 'recap') {
     facts.result = m.result; // "win" | "loss"
@@ -189,7 +190,9 @@ function seasonPrompt(job) {
   };
 
   if (isPreview) {
-    facts.first_match = s.first ? { opponent: s.first.opponent, date_utc: s.first.date } : null;
+    facts.first_match = s.first
+      ? { opponent: s.first.opponent, date: osloDate(s.first.date), start_time: osloTime(s.first.date) }
+      : null;
     facts.opponents_this_season = s.opponents;
     facts.last_season = s.lastSeason; // may be null
   } else {
@@ -225,7 +228,8 @@ const voice = (what) =>
   'You are the staff writer for the professional Counter-Strike 2 (CS2) esports team "Urge Intensesports". ' +
   `You write ${what} for the team's website. ` +
   'Voice: confident and energetic, but factual and never arrogant; third person ("Urge", "the squad"). ' +
-  'Hard rule: use ONLY the facts in the provided data - never invent scores, players, dates, maps, or results.';
+  'Hard rule: use ONLY the facts in the provided data - never invent scores, players, dates, maps, or results. ' +
+  'All dates and times in the data are already Norwegian local time (Europe/Oslo, CET/CEST) - quote them exactly as given and never convert or re-label them.';
 
 const JSON_ONLY = `
 Respond with ONLY the JSON object - no code fences, no commentary, no text before or after it.
@@ -269,6 +273,32 @@ function parseJson(text) {
   return null;
 }
 
+/* ---------- dates, in the team's own timezone ---------- */
+// GG Arena reports kickoff in UTC; the team, the league and the site all work
+// in Oslo time (an hour or two ahead), so convert before the model ever sees it.
+const OSLO = 'Europe/Oslo';
+
+function osloParts(iso, opts) {
+  if (!iso) return null;
+  const d = new Date(String(iso).replace(/\.\d+Z$/, 'Z'));
+  if (isNaN(d.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat('en-GB', Object.assign({ timeZone: OSLO }, opts)).format(d);
+  } catch (e) {
+    return null;
+  }
+}
+
+// "Tuesday 8 September 2026"
+const osloDate = (iso) =>
+  osloParts(iso, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+// "19:00 (Oslo time)"
+function osloTime(iso) {
+  const t = osloParts(iso, { hour: '2-digit', minute: '2-digit', hour12: false });
+  return t ? t + ' (Oslo time)' : null;
+}
+
 /* ---------- the season (current competition/division) ---------- */
 // Builds everything a season preview or review needs out of the division's
 // own fixture list: the field, our record, and where we finished.
@@ -310,7 +340,7 @@ async function seasonState(allMatches) {
       opponent: m.opponent,
       result: m.result,
       score_maps: m.ourScore != null && m.theirScore != null ? m.ourScore + '-' + m.theirScore : null,
-      date_utc: m.date,
+      date: osloDate(m.date),
     })),
     position: done.length ? tablePosition(fixtures) : null,
     lastSeason: previousSeason(allMatches || [], divisionId),
