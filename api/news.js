@@ -7,6 +7,7 @@
    POST   /api/news            → create        (admin)
    PUT    /api/news?id=x       → update/publish (admin)
    DELETE /api/news?id=x       → delete         (admin)
+   DELETE /api/news?drafts=1   → delete ALL drafts (admin)
 
    Admin calls must send header  x-admin-key: <ADMIN_PASSWORD>.
    Articles live in a single KV key ("articles") as a JSON array.
@@ -85,6 +86,14 @@ async function updateHandler(req, res) {
 }
 
 async function deleteHandler(req, res) {
+  // ?drafts=1 clears every draft in one go (published articles are untouched)
+  if (req.query.drafts) {
+    const all = await getAll();
+    const kept = all.filter((x) => x.status === 'published');
+    const removed = all.length - kept.length;
+    if (removed) await saveAll(kept);
+    return ok(res, { deleted: removed }, 0);
+  }
   const id = req.query.id;
   const all = await getAll();
   const next = all.filter((x) => x.id !== id);

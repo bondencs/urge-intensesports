@@ -20,6 +20,8 @@ const TEAM_IDS = String(process.env.GGARENA_TEAM_IDS || process.env.GGARENA_TEAM
   .split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n) && n > 0);
 const isUs = (id) => id != null && TEAM_IDS.indexOf(Number(id)) !== -1;
 
+// Fallbacks only — the live division is detected from our own fixture list,
+// so a new season shows up without anyone changing a setting.
 const COMPETITION_ID = Number(process.env.GGARENA_COMPETITION_ID || 13908);
 const DIVISION_ID = Number(process.env.GGARENA_DIVISION_ID || 18870);
 
@@ -30,7 +32,8 @@ module.exports = async (req, res) => {
   if (!TOKEN) return fail(res, 503, 'Server is missing the GGARENA_TOKEN environment variable.');
 
   try {
-    const matches = await divisionMatchups();
+    const divisionId = await currentDivisionId();
+    const matches = await divisionMatchups(divisionId);
     if (!matches.length) return fail(res, 404, 'No matches found for this division.');
 
     const rows = {};
@@ -90,7 +93,7 @@ module.exports = async (req, res) => {
         url: (first.competition && first.competition.url) || null,
       },
       division: {
-        id: (first.division && first.division.id) || DIVISION_ID,
+        id: (first.division && first.division.id) || divisionId,
         name: (first.division && first.division.name) || null,
       },
       rounds: { played, total: matches.filter((m) => !m.cancelled).length },
@@ -120,15 +123,34 @@ function row(rows, t) {
   });
 }
 
-async function divisionMatchups() {
+// The division we're actually playing in: the one our next fixture belongs to,
+// else the one our last result came from. One cheap request against the
+// current team; falls back to GGARENA_DIVISION_ID if anything is missing.
+async function currentDivisionId() {
+  try {
+    const data = await gg(`matchup?team_id=${TEAM_IDS[0]}&limit=${PER_PAGE}`);
+    const list = (Array.isArray(data) ? data : (data && data.data) || [])
+      .filter((m) => !m.cancelled && m.division && m.division.id);
+    const now = Date.now();
+    const ts = (m) => new Date(String(m.start_time || '').replace(/\.\d+Z$/, 'Z')).getTime() || 0;
+
+    const next = list.filter((m) => m.finished_at == null && ts(m) > now).sort((a, b) => ts(a) - ts(b))[0];
+    if (next) return next.division.id;
+    const last = list.filter((m) => m.finished_at != null).sort((a, b) => ts(b) - ts(a))[0];
+    if (last) return last.division.id;
+  } catch (e) { /* fall through to the configured default */ }
+  return DIVISION_ID;
+}
+
+async function divisionMatchups(divisionId) {
   const out = [];
   let page = 1, last = 1;
   do {
-    const data = await gg(`matchup?division_id=${DIVISION_ID}&limit=${PER_PAGE}&page=${page}`);
+    const data = await gg(`matchup?division_id=${divisionId}&limit=${PER_PAGE}&page=${page}`);
     const list = Array.isArray(data) ? data : (data && data.data) || [];
     for (const m of list) {
       // Safety net: the upstream filter is trusted, but never mix divisions.
-      if (!m.division || m.division.id === DIVISION_ID) out.push(m);
+      if (!m.division || m.division.id === divisionId) out.push(m);
     }
     last = (data && data.meta && data.meta.last_page) || 1;
     page++;

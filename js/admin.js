@@ -67,6 +67,18 @@
     } catch (e) { note('aiNote', 'AI generation failed (network).', true); }
   });
 
+  $('purgeBtn').addEventListener('click', async () => {
+    const drafts = (window.__articles || []).filter((a) => a.status !== 'published');
+    if (!drafts.length) return note('aiNote', 'There are no drafts to delete.');
+    if (!confirm('Delete all ' + drafts.length + ' draft' + (drafts.length > 1 ? 's' : '') +
+                 '? Published articles are not affected. This cannot be undone.')) return;
+    const r = await api('DELETE', '?drafts=1');
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return note('aiNote', j.error || 'Could not delete the drafts.', true);
+    note('aiNote', 'Deleted ' + (j.deleted || 0) + ' draft(s).');
+    const l = await api('GET', '?all=1'); if (l.ok) renderList(await l.json());
+  });
+
   function renderList(items) {
     const list = $('list');
     if (!Array.isArray(items) || !items.length) { list.innerHTML = '<div class="news-empty">No articles yet. Hit “New article”.</div>'; return; }
