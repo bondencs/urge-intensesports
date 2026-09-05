@@ -821,30 +821,8 @@ a.match { text-decoration: none; color: inherit; }
 .sponsors__track span:hover { color: var(--green); }
 
 /* =========================================================
-   CONTACT
+   FORM FIELDS (admin editor)
    ========================================================= */
-.contact__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(36px, 5vw, 72px);
-}
-.contact__list { margin: 24px 0 8px; display: grid; gap: 12px; }
-.contact__list li { display: flex; gap: 14px; align-items: baseline; color: #cfd2d6; }
-.contact__list span {
-  font-family: var(--f-head);
-  text-transform: uppercase; letter-spacing: 2px;
-  font-size: 0.72rem; color: var(--green);
-  min-width: 74px;
-}
-
-.contact__form {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: clamp(24px, 4vw, 36px);
-  display: grid;
-  gap: 16px;
-}
 .field { display: grid; gap: 7px; }
 .field label {
   font-family: var(--f-head);
@@ -868,9 +846,12 @@ a.match { text-decoration: none; color: inherit; }
   box-shadow: 0 0 0 3px rgba(166, 255, 26, 0.15);
 }
 .field select { appearance: none; cursor: pointer; }
-.contact__note { font-size: 0.88rem; min-height: 1.2em; }
-.contact__note.is-ok { color: var(--green); }
-.contact__note.is-err { color: var(--orange); }
+
+/* =========================================================
+   NEWS ON THE HOME PAGE
+   ========================================================= */
+.news-home .news-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.news-home__more { display: flex; justify-content: center; margin-top: clamp(28px, 4vw, 44px); }
 
 /* =========================================================
    FOOTER
@@ -916,7 +897,7 @@ a.match { text-decoration: none; color: inherit; }
    RESPONSIVE
    ========================================================= */
 @media (max-width: 980px) {
-  .about__grid, .stream__grid, .contact__grid { grid-template-columns: 1fr; }
+  .about__grid, .stream__grid { grid-template-columns: 1fr; }
   .roster__grid { grid-template-columns: repeat(2, 1fr); }
   .timeline { grid-template-columns: 1fr; }
 }

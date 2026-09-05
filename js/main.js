@@ -122,26 +122,6 @@
     });
   });
 
-  /* ---------- Contact form (demo handler) ---------- */
-  const form = $('#contactForm');
-  const note = $('#formNote');
-  if (form) {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = $('#cname').value.trim();
-      const email = $('#cemail').value.trim();
-      const valid = name && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && $('#cmsg').value.trim();
-      if (!valid) {
-        note.textContent = 'Please fill in your name, a valid email, and a message.';
-        note.className = 'contact__note is-err';
-        return;
-      }
-      note.textContent = 'Thanks ' + name + '! Message ready — connect this form to email to send it for real.';
-      note.className = 'contact__note is-ok';
-      form.reset();
-    });
-  }
-
   /* ---------- Site-wide particle network backdrop ---------- */
   const canvas = $('#bgCanvas');
   if (canvas && !reduceMotion) {

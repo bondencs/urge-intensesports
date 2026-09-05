@@ -46,6 +46,49 @@
       : emptyCard('No results to show yet.'));
   }
 
+  /* ---------------- latest news (home page) ---------------- */
+  const NEWS_ON_HOME = 3;
+
+  async function loadHomeNews() {
+    const grid = document.querySelector('[data-news-home]');
+    if (!grid) return;
+    let items;
+    try {
+      const r = await fetch('/api/news', { headers: { Accept: 'application/json' } });
+      if (!r.ok) throw new Error('news ' + r.status);
+      items = await r.json();
+    } catch (e) {
+      grid.innerHTML = emptyNews('News isn’t available right now.');
+      return;
+    }
+    if (!Array.isArray(items) || !items.length) {
+      grid.innerHTML = emptyNews('No stories published yet — check back after the next match.');
+      return;
+    }
+    grid.innerHTML = items.slice(0, NEWS_ON_HOME).map(newsCard).join('');
+  }
+
+  const emptyNews = (msg) => '<div class="news-empty">' + esc(msg) + '</div>';
+
+  const newsCard = (a) =>
+    '<a class="news-card" href="news.html?article=' + encodeURIComponent(a.slug) + '">' +
+      (a.image
+        ? '<div class="news-card__media"><img src="' + esc(a.image) + '" alt="" loading="lazy"></div>'
+        : '<div class="news-card__media news-card__media--blank"><span>URGE</span></div>') +
+      '<div class="news-card__body">' +
+        '<div class="news-card__meta"><span class="news-tag">' + esc(a.category) + '</span>' +
+          '<span class="news-date">' + newsDate(a.date) + '</span></div>' +
+        '<h3 class="news-card__title">' + esc(a.title) + '</h3>' +
+        '<p class="news-card__excerpt">' + esc(a.excerpt || '') + '</p>' +
+        '<span class="news-card__more">Read more →</span>' +
+      '</div>' +
+    '</a>';
+
+  function newsDate(d) {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? '' : dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
   /* ---------------- league table ---------------- */
   async function loadStandings() {
     let d;
@@ -372,6 +415,7 @@
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* run */
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadMatches);
-  else loadMatches();
+  function start() { loadMatches(); loadHomeNews(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();
