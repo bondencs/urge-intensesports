@@ -527,6 +527,14 @@ p { color: var(--muted); }
   line-height: 1;
   color: var(--green);
 }
+.stats__scope {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-family: var(--f-head);
+  text-transform: uppercase; letter-spacing: 2px;
+  font-size: 0.72rem; color: var(--muted-d);
+  margin-top: 2px;
+}
 .stat__label {
   font-family: var(--f-head);
   text-transform: uppercase;

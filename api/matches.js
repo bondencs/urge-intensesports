@@ -5,11 +5,15 @@
    hidden), keeps only matches involving OUR team, normalizes
    them, and returns a clean shape the front-end can render:
 
-     { upcoming: [...], results: [...] }
+     { upcoming: [...], results: [...], summary: {...} }
 
    Each item: { id, url, opponent, opponentLogo, event, division,
-                date, finished, ourScore, theirScore, result,
-                walkover, twitch }
+                divisionId, round, date, finished, ourScore,
+                theirScore, result, walkover, twitch }
+
+   The summary feeds the About counters and covers the current
+   season plus the previous one - not all time, which would mix in
+   seasons played by an older roster under a different team id.
    ========================================================= */
 
 const BASE = (process.env.GGARENA_BASE || 'https://www.ggarena.no/api/paradise/v2').replace(/\/+$/, '');
@@ -21,10 +25,6 @@ const TOKEN = (process.env.GGARENA_TOKEN || '').trim().replace(/^Bearer\s+/i, ''
 const TEAM_IDS = String(process.env.GGARENA_TEAM_IDS || process.env.GGARENA_TEAM_ID || '205067,162570')
   .split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n) && n > 0);
 const isUs = (id) => id != null && TEAM_IDS.indexOf(Number(id)) !== -1;
-
-// Current season (Komplettligaen). Used to tag this season's fixtures.
-const COMPETITION_ID = Number(process.env.GGARENA_COMPETITION_ID || 13908);
-const DIVISION_ID = Number(process.env.GGARENA_DIVISION_ID || 18870);
 
 const PER_PAGE = 50;  // the API's page-size param is "limit" (per_page is ignored)
 const MAX_PAGES = 12; // safety cap on pagination
@@ -45,23 +45,10 @@ module.exports = async (req, res) => {
       .sort((a, b) => b.ts - a.ts)
       .slice(0, 12); // most recent dozen — the team has 100+ historical matches
 
-    // Real career summary, computed over ALL finished matches (not just the shown 12).
-    const finishedAll = matches.filter((m) => m.finished);
-    let wins = 0, losses = 0, mapsPlayed = 0, mapsWon = 0;
-    for (const m of finishedAll) {
-      if (m.result === 'win') wins++;
-      else if (m.result === 'loss') losses++;
-      if (m.ourScore != null && m.theirScore != null) {
-        mapsPlayed += m.ourScore + m.theirScore;
-        mapsWon += m.ourScore;
-      }
-    }
-    const summary = {
-      played: finishedAll.length,
-      wins, losses,
-      winRate: wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0,
-      mapsPlayed, mapsWon,
-    };
+    // Summary for the About counters. The squad re-registered under a new team
+    // id, so an all-time total mixes in seasons this roster never played. Scope
+    // it to the current season plus the one before it.
+    const summary = seasonSummary(matches);
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1800');
@@ -95,6 +82,56 @@ async function fetchTeamMatchups() {
   return collected;
 }
 
+// The seasons the counters cover: the one we're in now, plus the previous one.
+function seasonSummary(matches) {
+  const now = Date.now();
+  const withDivision = matches.filter((m) => m.divisionId);
+
+  const next = withDivision
+    .filter((m) => !m.finished && !m.cancelled && m.ts > now)
+    .sort((a, b) => a.ts - b.ts)[0];
+  const lastPlayed = withDivision.filter((m) => m.finished).sort((a, b) => b.ts - a.ts);
+
+  const currentId = next ? next.divisionId : (lastPlayed[0] && lastPlayed[0].divisionId) || null;
+  const previous = lastPlayed.find((m) => m.divisionId !== currentId);
+  const ids = [currentId, previous && previous.divisionId].filter((x) => x != null);
+
+  // No division data at all (very old fixtures): fall back to every result.
+  const counted = ids.length
+    ? matches.filter((m) => m.finished && ids.indexOf(m.divisionId) !== -1)
+    : matches.filter((m) => m.finished);
+
+  let wins = 0, losses = 0, mapsPlayed = 0, mapsWon = 0;
+  for (const m of counted) {
+    if (m.result === 'win') wins++;
+    else if (m.result === 'loss') losses++;
+    if (m.ourScore != null && m.theirScore != null) {
+      mapsPlayed += m.ourScore + m.theirScore;
+      mapsWon += m.ourScore;
+    }
+  }
+
+  const season = (id) => {
+    const m = matches.find((x) => x.divisionId === id);
+    return m ? { id, division: m.division, competition: m.event, label: seasonLabel(m.event) } : null;
+  };
+
+  return {
+    played: counted.length,
+    wins, losses,
+    winRate: wins + losses ? Math.round((wins / (wins + losses)) * 100) : 0,
+    mapsPlayed, mapsWon,
+    seasons: ids.map(season).filter(Boolean),
+  };
+}
+
+// "Komplettligaen: Counter-strike - Hosten 2026" -> "Hosten 2026"
+function seasonLabel(competition) {
+  if (!competition) return null;
+  const parts = String(competition).split(' - ');
+  return (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
+}
+
 async function gg(path) {
   const r = await fetch(`${BASE}/${path}`, {
     headers: { Authorization: `Bearer ${TOKEN}`, Accept: 'application/json' },
@@ -125,10 +162,8 @@ function normalize(m) {
     opponentLogo: (them.team.logo && them.team.logo.url) || null,
     event: (m.competition && m.competition.name) || 'Match',
     division: (m.division && m.division.name) || null,
+    divisionId: (m.division && m.division.id) || null,
     round: m.round_number ? `Round ${m.round_number}` : (m.round_identifier_text || null),
-    // true for fixtures in the season we're currently playing
-    thisSeason: !!(m.division && m.division.id === DIVISION_ID) ||
-                !!(m.competition && m.competition.id === COMPETITION_ID),
     date: m.start_time || null,
     ts: m.start_time ? new Date(String(m.start_time).replace(/\.\d+Z$/, 'Z')).getTime() : 0,
     finished,

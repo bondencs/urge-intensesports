@@ -144,9 +144,24 @@
     Object.keys(map).forEach((k) => {
       const el = document.querySelector('[data-stat="' + k + '"]');
       if (!el || map[k] == null) return;
-      el.dataset.count = map[k];                       // animated counter will target this
-      el.textContent = map[k] + (el.dataset.suffix || ''); // and a correct value if it already ran
+      el.dataset.count = map[k];                       // the counter animates towards this
+      // Also write it directly: covers a finished animation, and reduced-motion
+      // visitors, who never animate at all.
+      el.textContent = map[k] + (el.dataset.suffix || '');
     });
+    applyScope(s.seasons);
+  }
+
+  // Say which seasons the counters cover, so the numbers aren't a mystery.
+  function applyScope(seasons) {
+    const el = document.querySelector('[data-stat-scope]');
+    if (!el) return;
+    const labels = (seasons || []).map((x) => x && x.label).filter(Boolean);
+    if (!labels.length) { el.hidden = true; return; }
+    el.textContent = labels.length > 1
+      ? labels.slice().reverse().join(' + ')
+      : labels[0];
+    el.hidden = false;
   }
 
   function setPanel(name, html) { const p = $('[data-panel="' + name + '"]'); if (p) p.innerHTML = html; }

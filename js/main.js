@@ -85,16 +85,18 @@
   /* ---------- Animated counters ---------- */
   const counters = $$('[data-count]');
   const runCounter = (el) => {
-    const target = parseFloat(el.dataset.count);
-    const suffix = el.dataset.suffix || '';
     const dur = 1600;
     const start = performance.now();
     const step = (now) => {
+      // Re-read the target every frame: live.js fills in the real figure from
+      // /api/matches, which often lands after the animation has already begun.
+      const target = parseFloat(el.dataset.count) || 0;
+      const suffix = el.dataset.suffix || '';
       const p = Math.min((now - start) / dur, 1);
       const eased = 1 - Math.pow(1 - p, 3);
       el.textContent = Math.round(target * eased) + suffix;
       if (p < 1) requestAnimationFrame(step);
-      else el.textContent = target + suffix;
+      else { el.textContent = target + suffix; el.dataset.counted = '1'; }
     };
     requestAnimationFrame(step);
   };
