@@ -127,8 +127,10 @@ module.exports = async (req, res) => {
         jobs.push({ kind: 'season-review', season });
       }
     }
-    for (const m of recaps) { if (jobs.length >= MAX_NEW) break; jobs.push({ kind: 'recap', match: m }); }
-    for (const m of previews) { if (jobs.length >= MAX_NEW) break; jobs.push({ kind: 'preview', match: m }); }
+    // Match articles carry the season context too, so the writer knows whether
+    // this is the opener or the middle of a campaign.
+    for (const m of recaps) { if (jobs.length >= MAX_NEW) break; jobs.push({ kind: 'recap', match: m, context: season }); }
+    for (const m of previews) { if (jobs.length >= MAX_NEW) break; jobs.push({ kind: 'preview', match: m, context: season }); }
 
     const client = new Anthropic({ apiKey: ANTHROPIC_KEY });
     const created = [];
@@ -188,6 +190,7 @@ async function writeArticle(client, job, stats) {
 function matchPrompt(job, stats) {
   const m = job.match;
   const scout = job.scout || null;
+  const ctx = job.context || null;
   const facts = {
     team: TEAM_NAME,
     opponent: m.opponent,
@@ -196,7 +199,24 @@ function matchPrompt(job, stats) {
     round: m.round,
     date: osloDate(m.date),
     start_time: osloTime(m.date),
+    // Nominal in an online league, but it is home/away on the schedule.
+    urge_are: m.ourSide === 'home' ? 'the home team' : 'the away team',
   };
+
+  if (ctx) {
+    const done = ctx.results || [];
+    const last = done.length ? done[done.length - 1] : null;
+    facts.our_season_so_far = {
+      fixtures_in_season: ctx.total,
+      matches_played: ctx.played,
+      record: ctx.wins + 'W-' + ctx.losses + 'L',
+      league_position: ctx.position,
+      is_season_opener: ctx.played === 0,
+      last_result: last
+        ? { opponent: last.opponent, result: last.result, score_maps: last.score_maps }
+        : null,
+    };
+  }
   if (job.kind === 'recap') {
     facts.result = m.result; // "win" | "loss"
     facts.score_maps = m.ourScore != null && m.theirScore != null ? m.ourScore + '-' + m.theirScore : null;
@@ -235,6 +255,9 @@ function matchPrompt(job, stats) {
         ' Numbers come straight from the data - never round them into something they are not.' +
         ' Respect the sample size: a player with only a couple of maps recorded is a stand-in, not a star,' +
         ' and a map played once proves nothing. Say so where it matters.' +
+        ' Place the fixture correctly in the season: our_season_so_far says how many matches Urge have' +
+        ' already played and how they went, so only call it an opener or a start when is_season_opener' +
+        ' is true. Use urge_are for home or away and never guess who hosts.' +
         ' Keep it 300-450 words.'
       : ' Keep it 130-220 words.');
 
@@ -347,7 +370,9 @@ function toArticle(draft, job) {
     kind: job.kind,
     matchId: job.match ? job.match.id : null,
     // one season preview and one season review per division, ever
-    seasonKey: job.season ? (job.kind === 'season-preview' ? job.season.previewKey : job.season.reviewKey) : null,
+    seasonKey: job.kind === 'season-preview' ? job.season.previewKey
+      : job.kind === 'season-review' ? job.season.reviewKey
+      : null,
     date: now,
     createdAt: now,
   };
