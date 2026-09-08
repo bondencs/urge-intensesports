@@ -2,5 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     { "path": "/api/ai-news", "schedule": "0 9 * * *" }
-  ]
+  ],
+  "functions": {
+    "api/scout.js": { "maxDuration": 60 },
+    "api/ai-news.js": { "maxDuration": 60 }
+  }
 }
