@@ -9,7 +9,7 @@
      matchup/{id}/veto   → what they ban first, what they pick
      matchup/{id}/stats  → who actually does the damage
 
-   Returns { team, fixture, sample, maps, veto, players }.
+   Returns { team, fixture, sample, maps, veto, likelyLineup, players }.
    Everything is derived from finished matches only, and only from
    the recent ones - a 2017 result says nothing about this roster.
    ========================================================= */
@@ -162,6 +162,24 @@ async function scout(teamId_) {
   const pool = Object.keys(seenMaps);
   const comfortable = pool.filter((m) => !bans[m]).sort();
 
+  const roster = Object.values(players)
+    .filter((p) => p.ratingW > 0)
+    .map((p) => ({
+      name: p.name,
+      matches: p.matches,
+      maps: p.maps,
+      rating: +(p.ratingSum / p.ratingW).toFixed(2),
+      kd: p.deaths ? +(p.kills / p.deaths).toFixed(2) : p.kills,
+      adr: p.rounds ? Math.round(p.dmg / p.rounds) : 0,
+      hsPct: p.kills ? Math.round((p.hs / p.kills) * 100) : 0,
+      openingPct: p.openT ? Math.round((p.openW / p.openT) * 100) : 0,
+    }));
+
+  // Who actually turns up: the five with the most maps in the sample. Rating
+  // alone would crown someone who stood in for two maps a year ago.
+  const likelyLineup = roster.slice().sort((a, b) => b.maps - a.maps).slice(0, 5)
+    .sort((a, b) => b.rating - a.rating);
+
   return {
     team: identity,
     sample: {
@@ -178,19 +196,8 @@ async function scout(teamId_) {
       picks: rank(picks),
       neverBanned: comfortable,
     },
-    players: Object.values(players)
-      .filter((p) => p.ratingW > 0)
-      .map((p) => ({
-        name: p.name,
-        matches: p.matches,
-        maps: p.maps,
-        rating: +(p.ratingSum / p.ratingW).toFixed(2),
-        kd: p.deaths ? +(p.kills / p.deaths).toFixed(2) : p.kills,
-        adr: p.rounds ? Math.round(p.dmg / p.rounds) : 0,
-        hsPct: p.kills ? Math.round((p.hs / p.kills) * 100) : 0,
-        openingPct: p.openT ? Math.round((p.openW / p.openT) * 100) : 0,
-      }))
-      .sort((a, b) => b.rating - a.rating),
+    likelyLineup,
+    players: roster.slice().sort((a, b) => b.rating - a.rating),
   };
 }
 

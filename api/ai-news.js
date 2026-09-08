@@ -1,13 +1,14 @@
 /* =========================================================
-   /api/ai-news  —  AI sports writer (drafts only).
+   /api/ai-news  —  AI sports writer.
 
    Triggered by Vercel Cron (daily) or manually from the admin
    page. It pulls the team's matchups and the current division,
-   then uses Claude to draft, as a DRAFT for the admin to review:
+   then uses Claude to write:
 
      - match recaps    (results from the last RECAP_DAYS days)
      - match previews  (about PREVIEW_LEAD_DAYS days before kickoff,
-       and never while a match of ours is in progress)
+       never while a match is in progress, and carrying a scouting
+       dossier on the opponent from /api/scout)
      - a season preview (once, when the division's first fixture
        is close and nothing has been played yet)
      - a season review  (once, when every fixture is finished)
@@ -126,6 +127,7 @@ module.exports = async (req, res) => {
     for (const job of jobs) {
       try {
         const stats = job.kind === 'recap' ? await fetchOurStats(job.match).catch(() => null) : null;
+        if (job.kind === 'preview') job.scout = await scoutOpponent(job.match).catch(() => null);
         if (job.kind === 'season-review') job.season.top = await seasonPlayers(job.season).catch(() => null);
         const draft = await writeArticle(client, job, stats);
         if (!draft) {
@@ -175,6 +177,7 @@ async function writeArticle(client, job, stats) {
 
 function matchPrompt(job, stats) {
   const m = job.match;
+  const scout = job.scout || null;
   const facts = {
     team: TEAM_NAME,
     opponent: m.opponent,
@@ -192,18 +195,59 @@ function matchPrompt(job, stats) {
         name: p.player_name, rating: p.rating, kills: p.kills, deaths: p.deaths,
       }));
     }
+  } else if (scout) {
+    facts.opponent_scouting = {
+      based_on: {
+        matches: scout.sample.matches,
+        record: scout.sample.wins + 'W-' + scout.sample.losses + 'L',
+        from: (scout.sample.from || '').slice(0, 10),
+        to: (scout.sample.to || '').slice(0, 10),
+      },
+      map_record: scout.maps.map((x) => ({
+        map: x.map, played: x.played, record: x.wins + '-' + x.losses,
+        win_pct: x.winRate, round_diff: x.roundDiff,
+      })),
+      veto: {
+        usual_first_ban: scout.veto.firstBans.slice(0, 3),
+        all_bans: scout.veto.bans,
+        maps_they_pick: scout.veto.picks,
+        never_banned: scout.veto.neverBanned,
+      },
+      likely_lineup: scout.likelyLineup,
+    };
   }
 
-  const system = voice(`match ${job.kind === 'recap' ? 'recaps' : 'previews'}`) + ' Keep it 130-220 words.';
+  const isScoutedPreview = job.kind === 'preview' && !!scout;
+
+  const system = voice(`match ${job.kind === 'recap' ? 'recaps' : 'previews'}`) +
+    (isScoutedPreview
+      ? ' A preview doubles as a prep sheet for the squad, so be concrete and useful rather than hype.' +
+        ' Numbers come straight from the data - never round them into something they are not.' +
+        ' Respect the sample size: a player with only a couple of maps recorded is a stand-in, not a star,' +
+        ' and a map played once proves nothing. Say so where it matters.' +
+        ' Keep it 300-450 words.'
+      : ' Keep it 130-220 words.');
 
   const angle = job.kind === 'recap'
     ? 'Reflect the result and map score; if player stats are provided, highlight the top performer by rating.'
     : 'Build anticipation; do NOT state or imply a result.';
 
+  const scoutBrief = `- body: Markdown. Open with a short paragraph on the fixture, then use these "## " sections:
+  "## The opponent" - their recent record and what the sample covers.
+  "## Map read" - use a bulleted list of their strongest and weakest maps with the numbers
+    (map, W-L, win %), then a sentence on their veto habits: what they almost always ban first,
+    what they pick, and which maps they never ban.
+  "## Danger men" - a bulleted list of 2-4 of their likely starters with rating, K/D and ADR,
+    noting who wins opening duels. Use likely_lineup, not whoever has the highest rating on a
+    tiny sample.
+  "## What it means for us" - two or three concrete sentences on where the map veto and the
+    matchups point. Do NOT predict a scoreline or state a result.
+Write about Urge in the third person. Never invent a number that is not in the data.`;
+
   const user = `Write a match ${job.kind} as a JSON object with exactly these keys: "title", "excerpt", "body".
 - title: short, catchy headline.
 - excerpt: one-sentence summary, max ~160 characters.
-- body: Markdown, two or three short paragraphs (optionally one "## " subheading). Name the opponent and competition. ${angle}
+${isScoutedPreview ? scoutBrief : `- body: Markdown, two or three short paragraphs (optionally one "## " subheading). Name the opponent and competition. ${angle}`}
 ${JSON_ONLY}${JSON.stringify(facts, null, 2)}`;
 
   return { system, user };
@@ -340,6 +384,18 @@ const osloDate = (iso) =>
 function osloTime(iso) {
   const t = osloParts(iso, { hour: '2-digit', minute: '2-digit', hour12: false });
   return t ? t + ' (Oslo time)' : null;
+}
+
+/* ---------- opponent scouting ---------- */
+// Same dossier /api/scout serves: map record, veto habits, likely lineup.
+async function scoutOpponent(match) {
+  const oppId = match.opponentId;
+  if (!oppId) return null;
+  const url = (process.env.SITE_ORIGIN || 'https://urgeintensesports.org') + '/api/scout?team=' + oppId;
+  const r = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!r.ok) return null;
+  const d = await r.json();
+  return d && d.maps ? d : null;
 }
 
 /* ---------- the season (current competition/division) ---------- */
@@ -533,6 +589,7 @@ function normalizeMatch(m) {
     id: m.id,
     ourSide: isHome ? 'home' : 'away',
     opponent: them.team.name || them.name || 'TBD',
+    opponentId: them.team.id || null,
     opponentLogo: (them.team.logo && them.team.logo.url) || null,
     event: (m.competition && m.competition.name) || 'Match',
     division: enDivision((m.division && m.division.name) || null),
