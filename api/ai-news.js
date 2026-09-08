@@ -6,14 +6,18 @@
    then uses Claude to draft, as a DRAFT for the admin to review:
 
      - match recaps    (results from the last RECAP_DAYS days)
-     - match previews  (fixtures within the next PREVIEW_DAYS days)
+     - match previews  (about PREVIEW_LEAD_DAYS days before kickoff,
+       and never while a match of ours is in progress)
      - a season preview (once, when the division's first fixture
        is close and nothing has been played yet)
      - a season review  (once, when every fixture is finished)
 
    The day windows matter: without them the writer walks backwards
    through the team's whole history, drafting recaps of matches from
-   seasons ago. It never auto-publishes.
+   seasons ago.
+
+   Articles are PUBLISHED immediately by default (AI_AUTOPUBLISH=0
+   turns that off and goes back to drafts awaiting approval).
 
    Required env: ANTHROPIC_API_KEY, GGARENA_TOKEN, KV_REST_API_*.
    Auth: Vercel Cron sends "Authorization: Bearer <CRON_SECRET>";
@@ -43,7 +47,12 @@ const DIVISION_ID = Number(process.env.GGARENA_DIVISION_ID || 18870);
 // backwards through the team's ENTIRE history, drafting recaps of matches
 // from seasons ago, and preview games that are still months away.
 const RECAP_DAYS = Number(process.env.AI_RECAP_DAYS || 14);
-const PREVIEW_DAYS = Number(process.env.AI_PREVIEW_DAYS || 7);
+// How long before kickoff a preview should appear. The cron runs once a day,
+// so a fixture becomes eligible a day earlier than the target and the next run
+// picks it up: for a Tuesday 19:00 match the preview goes out on the Sunday.
+const PREVIEW_LEAD_DAYS = Number(process.env.AI_PREVIEW_DAYS || 2);
+// A match already under way must never trigger its own or the next preview.
+const IN_PROGRESS_HOURS = Number(process.env.AI_IN_PROGRESS_HOURS || 4);
 const SEASON_PREVIEW_DAYS = Number(process.env.AI_SEASON_PREVIEW_DAYS || 21);
 const DAY = 86400000;
 
@@ -52,6 +61,9 @@ const MODEL = process.env.AI_MODEL || 'claude-opus-4-8'; // override to e.g. cla
 const ADMIN = process.env.ADMIN_PASSWORD;
 const CRON_SECRET = process.env.CRON_SECRET;
 const MAX_NEW = Number(process.env.AI_MAX_PER_RUN || 3);
+// Articles go live as soon as they are written. Set AI_AUTOPUBLISH=0 to go
+// back to drafts that wait for approval in the admin.
+const AUTOPUBLISH = (process.env.AI_AUTOPUBLISH || '1') !== '0';
 const KEY = 'articles';
 const MAX_PAGES = 12;
 
@@ -84,9 +96,13 @@ module.exports = async (req, res) => {
       .filter((m) => m.finished && m.result && !covered.recap.has(String(m.id)))
       .filter((m) => now - m.ts <= RECAP_DAYS * DAY)
       .sort((a, b) => b.ts - a.ts);
-    const previews = matches
+    // Don't preview the next fixture while we're still playing the current one.
+    const playingNow = matches.some(
+      (m) => !m.finished && !m.cancelled && m.ts <= now && now - m.ts <= IN_PROGRESS_HOURS * 3600000
+    );
+    const previews = playingNow ? [] : matches
       .filter((m) => !m.finished && !m.cancelled && m.ts > now && !covered.preview.has(String(m.id)))
-      .filter((m) => m.ts - now <= PREVIEW_DAYS * DAY)
+      .filter((m) => m.ts - now <= (PREVIEW_LEAD_DAYS + 1) * DAY)
       .sort((a, b) => a.ts - b.ts);
 
     // Season pieces come first: they are the big set-piece articles.
@@ -118,7 +134,7 @@ module.exports = async (req, res) => {
         }
         const article = toArticle(draft, job);
         existing.push(article);
-        created.push({ id: article.id, title: article.title, kind: job.kind });
+        created.push({ id: article.id, title: article.title, kind: job.kind, status: article.status });
       } catch (e) {
         skipped.push({ kind: job.kind, reason: (e && e.message) || 'Unknown error.' });
       }
@@ -129,6 +145,8 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       created,
       skipped,
+      published: AUTOPUBLISH,
+      heldForMatchInProgress: playingNow,
       candidates: {
         recaps: recaps.length,
         previews: previews.length,
@@ -271,7 +289,7 @@ function toArticle(draft, job) {
     body: String(draft.body || ''),
     image: '',
     author: 'Urge AI',
-    status: 'draft',          // always a draft — the admin approves before it goes live
+    status: AUTOPUBLISH ? 'published' : 'draft',
     kind: job.kind,
     matchId: job.match ? job.match.id : null,
     // one season preview and one season review per division, ever

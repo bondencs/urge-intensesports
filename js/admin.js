@@ -64,11 +64,15 @@
       const c = j.candidates || {};
       let msg;
       if (n) {
-        msg = 'Created ' + n + ' draft' + (n > 1 ? 's' : '') + ' — review and publish them below.';
+        msg = j.published
+          ? 'Published ' + n + ' article' + (n > 1 ? 's' : '') + ' — they are live on the news page now.'
+          : 'Created ' + n + ' draft' + (n > 1 ? 's' : '') + ' — review and publish them below.';
+      } else if (j.heldForMatchInProgress) {
+        msg = 'Holding off — a match is in progress. The preview goes out once it is over.';
       } else if (skipped.length) {
         msg = 'Nothing written: ' + skipped[0].kind + ' failed — ' + skipped[0].reason;
       } else if (!c.recaps && !c.previews) {
-        msg = 'Nothing new — no results in the last 14 days or fixtures in the next 7 to write about.';
+        msg = 'Nothing new — no recent results, and the next fixture is still more than a couple of days away.';
       } else {
         msg = 'Nothing new — the ' + (c.recaps || 0) + ' recent result(s) and ' +
               (c.previews || 0) + ' upcoming fixture(s) in range already have articles.';
