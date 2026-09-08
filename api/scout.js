@@ -9,7 +9,8 @@
      matchup/{id}/veto   → what they ban first, what they pick
      matchup/{id}/stats  → who actually does the damage
 
-   Returns { team, fixture, sample, maps, veto, likelyLineup, players }.
+   Returns { team, fixture, sample, maps, pool, veto, likelyLineup, players }.
+   Maps outside the CS2 active pool are kept but flagged inPool:false.
    Everything is derived from finished matches only, and only from
    the recent ones - a 2017 result says nothing about this roster.
    ========================================================= */
@@ -20,6 +21,13 @@ const TOKEN = (process.env.GGARENA_TOKEN || '').trim().replace(/^Bearer\s+/i, ''
 const TEAM_IDS = String(process.env.GGARENA_TEAM_IDS || process.env.GGARENA_TEAM_ID || '205067,162570')
   .split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n) && n > 0);
 const isUs = (id) => id != null && TEAM_IDS.indexOf(Number(id)) !== -1;
+
+// The CS2 active duty pool. Cache replaced Overpass in July 2026; Train is
+// out too. Historical results on retired maps are noise for prep, so they are
+// flagged rather than mixed in. Override with CS_MAP_POOL if Valve shuffles it.
+const ACTIVE_POOL = String(process.env.CS_MAP_POOL || 'Ancient,Anubis,Cache,Dust II,Inferno,Mirage,Nuke')
+  .split(',').map((x) => x.trim()).filter(Boolean);
+const inPool = (map) => ACTIVE_POOL.some((x) => x.toLowerCase() === String(map || '').toLowerCase());
 
 const PER_PAGE = 50;
 const SAMPLE = Number(process.env.SCOUT_SAMPLE || 10);      // recent matches to analyse
@@ -155,12 +163,15 @@ async function scout(teamId_) {
     .map((r) => Object.assign(r, {
       winRate: r.played ? Math.round((r.wins / r.played) * 100) : 0,
       roundDiff: r.roundsFor - r.roundsAgainst,
+      inPool: inPool(r.map),
     }))
-    .sort((a, b) => b.played - a.played || b.winRate - a.winRate);
+    // Active maps first, then by how much we know about them.
+    .sort((a, b) => (b.inPool - a.inPool) || b.played - a.played || b.winRate - a.winRate);
 
-  // Maps in the pool they never banned: the ones they are happy to play.
-  const pool = Object.keys(seenMaps);
-  const comfortable = pool.filter((m) => !bans[m]).sort();
+  // Maps they never banned, restricted to maps that can still be played.
+  const comfortable = Object.keys(seenMaps).filter((m) => !bans[m] && inPool(m)).sort();
+  // Active maps we have no read on at all - Cache is new, so nobody has history.
+  const noData = ACTIVE_POOL.filter((m) => !mapRows.some((r) => r.inPool && r.map.toLowerCase() === m.toLowerCase()));
 
   const roster = Object.values(players)
     .filter((p) => p.ratingW > 0)
@@ -190,10 +201,15 @@ async function scout(teamId_) {
       to: recent[0].start_time,
     },
     maps: mapRows,
+    pool: {
+      active: ACTIVE_POOL,
+      retiredInSample: mapRows.filter((r) => !r.inPool).map((r) => r.map),
+      activeWithoutData: noData,
+    },
     veto: {
-      firstBans: rank(firstBans),
-      bans: rank(bans),
-      picks: rank(picks),
+      firstBans: rank(firstBans).filter((x) => inPool(x.map)),
+      bans: rank(bans).filter((x) => inPool(x.map)),
+      picks: rank(picks).filter((x) => inPool(x.map)),
       neverBanned: comfortable,
     },
     likelyLineup,

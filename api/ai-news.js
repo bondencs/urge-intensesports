@@ -6,9 +6,9 @@
    then uses Claude to write:
 
      - match recaps    (results from the last RECAP_DAYS days)
-     - match previews  (about PREVIEW_LEAD_DAYS days before kickoff,
-       never while a match is in progress, and carrying a scouting
-       dossier on the opponent from /api/scout)
+     - match previews  (the day after the previous match's recap, so
+       there is maximum time to prepare; never while a match is in
+       progress; carrying a scouting dossier from /api/scout)
      - a season preview (once, when the division's first fixture
        is close and nothing has been played yet)
      - a season review  (once, when every fixture is finished)
@@ -48,9 +48,12 @@ const DIVISION_ID = Number(process.env.GGARENA_DIVISION_ID || 18870);
 // backwards through the team's ENTIRE history, drafting recaps of matches
 // from seasons ago, and preview games that are still months away.
 const RECAP_DAYS = Number(process.env.AI_RECAP_DAYS || 14);
-// How long before kickoff a preview should appear. The cron runs once a day,
-// so a fixture becomes eligible a day earlier than the target and the next run
-// picks it up: for a Tuesday 19:00 match the preview goes out on the Sunday.
+// Previews follow the recap: once the last result is written up, the next
+// opponent's scouting report goes out this many days later, which leaves the
+// most time to prepare with it. Only used when there is a recap to follow.
+const PREVIEW_AFTER_RECAP_DAYS = Number(process.env.AI_PREVIEW_AFTER_RECAP_DAYS || 1);
+// Fallback for the season opener, when no previous match exists to react to:
+// how long before kickoff the preview appears instead.
 const PREVIEW_LEAD_DAYS = Number(process.env.AI_PREVIEW_DAYS || 2);
 // A match already under way must never trigger its own or the next preview.
 const IN_PROGRESS_HOURS = Number(process.env.AI_IN_PROGRESS_HOURS || 4);
@@ -109,11 +112,10 @@ module.exports = async (req, res) => {
     const upcoming = matches
       .filter((m) => !m.finished && !m.cancelled && m.ts > now && !covered.preview.has(String(m.id)))
       .sort((a, b) => a.ts - b.ts);
-    const previews = playingNow && !force
-      ? []
-      : force
-        ? upcoming.slice(0, 1)   // just the next one, on demand
-        : upcoming.filter((m) => m.ts - now <= (PREVIEW_LEAD_DAYS + 1) * DAY);
+    // Always the next fixture only - never a stack of previews at once.
+    const nextUp = upcoming[0] || null;
+    const previewDue = nextUp && (force || previewIsDue(nextUp, matches, existing, now));
+    const previews = (playingNow && !force) || !previewDue ? [] : [nextUp];
 
     // Season pieces come first: they are the big set-piece articles.
     const jobs = [];
@@ -138,6 +140,7 @@ module.exports = async (req, res) => {
     for (const job of jobs) {
       try {
         const stats = job.kind === 'recap' ? await fetchOurStats(job.match).catch(() => null) : null;
+        if (job.kind === 'recap') job.maps = await fetchMaps(job.match).catch(() => null);
         if (job.kind === 'preview') job.scout = await scoutOpponent(job.match).catch(() => null);
         if (job.kind === 'season-review') job.season.top = await seasonPlayers(job.season).catch(() => null);
         const draft = await writeArticle(client, job, stats);
@@ -171,6 +174,30 @@ module.exports = async (req, res) => {
     return fail(res, err.statusCode || 500, err.message || 'AI writer error.');
   }
 };
+
+/* ---------- when a preview is due ---------- */
+// The day after the previous match's recap went out. That gives the squad the
+// longest run at the scouting report, and guarantees the recap lands first.
+function previewIsDue(next, matches, existing, now) {
+  const lastPlayed = matches
+    .filter((m) => m.finished && m.result)
+    .sort((a, b) => b.ts - a.ts)[0];
+
+  // Season opener, or the last result is too old to be recapped: fall back to
+  // a fixed lead time before kickoff.
+  if (!lastPlayed || now - lastPlayed.ts > RECAP_DAYS * DAY) {
+    return next.ts - now <= (PREVIEW_LEAD_DAYS + 1) * DAY;
+  }
+
+  const recap = existing.find(
+    (a) => String(a.matchId) === String(lastPlayed.id) && articleKind(a) === 'recap'
+  );
+  if (!recap) return false;   // the recap goes first
+
+  const published = Date.parse(recap.date || '') || 0;
+  if (!published) return true;
+  return now - published >= PREVIEW_AFTER_RECAP_DAYS * DAY;
+}
 
 /* ---------- article generation ---------- */
 async function writeArticle(client, job, stats) {
@@ -220,6 +247,7 @@ function matchPrompt(job, stats) {
   if (job.kind === 'recap') {
     facts.result = m.result; // "win" | "loss"
     facts.score_maps = m.ourScore != null && m.theirScore != null ? m.ourScore + '-' + m.theirScore : null;
+    if (job.maps && job.maps.length) facts.maps_played = job.maps;   // per map, in order
     if (stats && stats.length) {
       facts.our_players = stats.slice(0, 5).map((p) => ({
         name: p.player_name, rating: p.rating, kills: p.kills, deaths: p.deaths,
@@ -233,9 +261,14 @@ function matchPrompt(job, stats) {
         from: (scout.sample.from || '').slice(0, 10),
         to: (scout.sample.to || '').slice(0, 10),
       },
+      active_map_pool: (scout.pool && scout.pool.active) || null,
+      // Maps in their history that can no longer be played - context only.
+      retired_maps_in_sample: (scout.pool && scout.pool.retiredInSample) || [],
+      // Active maps with no record at all: unknowns for both sides.
+      active_maps_with_no_data: (scout.pool && scout.pool.activeWithoutData) || [],
       map_record: scout.maps.map((x) => ({
         map: x.map, played: x.played, record: x.wins + '-' + x.losses,
-        win_pct: x.winRate, round_diff: x.roundDiff,
+        win_pct: x.winRate, round_diff: x.roundDiff, in_active_pool: x.inPool,
       })),
       veto: {
         usual_first_ban: scout.veto.firstBans.slice(0, 3),
@@ -259,17 +292,23 @@ function matchPrompt(job, stats) {
         ' already played and how they went, so only call it an opener or a start when is_season_opener' +
         ' is true. Use urge_are for home or away and never guess who hosts.' +
         ' Keep it 300-450 words.'
-      : ' Keep it 130-220 words.');
+      : ' Keep it 160-260 words.');
 
   const angle = job.kind === 'recap'
-    ? 'Reflect the result and map score; if player stats are provided, highlight the top performer by rating.'
+    ? 'Reflect the result and the series score. If maps_played is provided, name every map and its ' +
+      'round score - a bulleted list is fine - and say which way each one went. If player stats are ' +
+      'provided, highlight the top performer by rating.'
     : 'Build anticipation; do NOT state or imply a result.';
 
   const scoutBrief = `- body: Markdown. Open with a short paragraph on the fixture, then use these "## " sections:
   "## The opponent" - their recent record and what the sample covers.
-  "## Map read" - use a bulleted list of their strongest and weakest maps with the numbers
-    (map, W-L, win %), then a sentence on their veto habits: what they almost always ban first,
-    what they pick, and which maps they never ban.
+  "## Map read" - ONLY draw conclusions about maps in active_map_pool. Maps flagged
+    in_active_pool: false (and anything in retired_maps_in_sample) can no longer be played -
+    mention them at most in passing, never as something to plan around. Use a bulleted list of
+    their strongest and weakest ACTIVE maps with the numbers (map, W-L, win %), then a sentence
+    on their veto habits: what they almost always ban first, what they pick, and which maps they
+    never ban. If active_maps_with_no_data is not empty, note that those are unknowns for both
+    sides.
   "## Danger men" - a bulleted list of 2-4 of their likely starters with rating, K/D and ADR,
     noting who wins opening duels. Use likely_lineup, not whoever has the highest rating on a
     tiny sample.
@@ -604,6 +643,23 @@ async function teamMatchups() {
     } while (page <= last && page <= MAX_PAGES);
   }
   return out;
+}
+
+// Per-map scoreline for a finished match, from our point of view.
+async function fetchMaps(m) {
+  const d = await gg('matchup/' + encodeURIComponent(m.id));
+  const list = (d && d.matchupmaps) || [];
+  return list
+    .filter((x) => x.home_score != null && x.away_score != null)
+    .map((x) => {
+      const ours = Number(m.ourSide === 'home' ? x.home_score : x.away_score);
+      const theirs = Number(m.ourSide === 'home' ? x.away_score : x.home_score);
+      return {
+        map: (x.resource && x.resource.name) || 'Unknown',
+        score: ours + '-' + theirs,
+        result: ours > theirs ? 'win' : 'loss',
+      };
+    });
 }
 
 async function fetchOurStats(m) {
