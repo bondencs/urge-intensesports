@@ -66,7 +66,14 @@ module.exports = async (req, res) => {
 
   try {
     const existing = await getArticles();
-    const covered = new Set(existing.filter((a) => a.matchId != null).map((a) => String(a.matchId)));
+    // Dedupe per match AND per kind: a fixture gets a preview before it is
+    // played and a recap after, so one article about it must not block the other.
+    const covered = { recap: new Set(), preview: new Set() };
+    for (const a of existing) {
+      if (a.matchId == null) continue;
+      const kind = articleKind(a);
+      if (kind) covered[kind].add(String(a.matchId));
+    }
     const coveredSeasons = new Set(existing.filter((a) => a.seasonKey).map((a) => a.seasonKey));
 
     const matches = (await teamMatchups()).map(normalizeMatch).filter(Boolean);
@@ -74,11 +81,11 @@ module.exports = async (req, res) => {
 
     // Only recent results and imminent fixtures - see RECAP_DAYS/PREVIEW_DAYS.
     const recaps = matches
-      .filter((m) => m.finished && m.result && !covered.has(String(m.id)))
+      .filter((m) => m.finished && m.result && !covered.recap.has(String(m.id)))
       .filter((m) => now - m.ts <= RECAP_DAYS * DAY)
       .sort((a, b) => b.ts - a.ts);
     const previews = matches
-      .filter((m) => !m.finished && !m.cancelled && m.ts > now && !covered.has(String(m.id)))
+      .filter((m) => !m.finished && !m.cancelled && m.ts > now && !covered.preview.has(String(m.id)))
       .filter((m) => m.ts - now <= PREVIEW_DAYS * DAY)
       .sort((a, b) => a.ts - b.ts);
 
@@ -99,22 +106,29 @@ module.exports = async (req, res) => {
 
     const client = new Anthropic({ apiKey: ANTHROPIC_KEY });
     const created = [];
+    const skipped = [];   // never fail silently: the admin needs to see why
     for (const job of jobs) {
       try {
         const stats = job.kind === 'recap' ? await fetchOurStats(job.match).catch(() => null) : null;
         if (job.kind === 'season-review') job.season.top = await seasonPlayers(job.season).catch(() => null);
         const draft = await writeArticle(client, job, stats);
-        if (!draft) continue;
+        if (!draft) {
+          skipped.push({ kind: job.kind, reason: 'The model did not return usable JSON.' });
+          continue;
+        }
         const article = toArticle(draft, job);
         existing.push(article);
         created.push({ id: article.id, title: article.title, kind: job.kind });
-      } catch (e) { /* skip this one, continue */ }
+      } catch (e) {
+        skipped.push({ kind: job.kind, reason: (e && e.message) || 'Unknown error.' });
+      }
     }
     if (created.length) await saveArticles(existing);
 
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({
       created,
+      skipped,
       candidates: {
         recaps: recaps.length,
         previews: previews.length,
@@ -258,12 +272,21 @@ function toArticle(draft, job) {
     image: '',
     author: 'Urge AI',
     status: 'draft',          // always a draft — the admin approves before it goes live
+    kind: job.kind,
     matchId: job.match ? job.match.id : null,
     // one season preview and one season review per division, ever
     seasonKey: job.season ? (job.kind === 'season-preview' ? job.season.previewKey : job.season.reviewKey) : null,
     date: now,
     createdAt: now,
   };
+}
+
+// What an article covers. New ones say so; older ones only have a category.
+function articleKind(a) {
+  if (a.kind === 'recap' || a.kind === 'preview') return a.kind;
+  if (a.category === 'Match Recap') return 'recap';
+  if (a.category === 'Match Preview') return 'preview';
+  return null;
 }
 
 function parseJson(text) {

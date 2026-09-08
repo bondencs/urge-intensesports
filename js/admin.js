@@ -60,9 +60,20 @@
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { note('aiNote', j.error || 'AI generation failed.', true); return; }
       const n = (j.created || []).length;
-      note('aiNote', n
-        ? 'Created ' + n + ' draft' + (n > 1 ? 's' : '') + ' — review and publish them below.'
-        : 'No new matches to write about right now.');
+      const skipped = j.skipped || [];
+      const c = j.candidates || {};
+      let msg;
+      if (n) {
+        msg = 'Created ' + n + ' draft' + (n > 1 ? 's' : '') + ' — review and publish them below.';
+      } else if (skipped.length) {
+        msg = 'Nothing written: ' + skipped[0].kind + ' failed — ' + skipped[0].reason;
+      } else if (!c.recaps && !c.previews) {
+        msg = 'Nothing new — no results in the last 14 days or fixtures in the next 7 to write about.';
+      } else {
+        msg = 'Nothing new — the ' + (c.recaps || 0) + ' recent result(s) and ' +
+              (c.previews || 0) + ' upcoming fixture(s) in range already have articles.';
+      }
+      note('aiNote', msg, !n && skipped.length > 0);
       const l = await api('GET', '?all=1'); if (l.ok) renderList(await l.json());
     } catch (e) { note('aiNote', 'AI generation failed (network).', true); }
   });
