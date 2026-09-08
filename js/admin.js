@@ -53,10 +53,16 @@
   /* ---- list ---- */
   $('refreshBtn').addEventListener('click', async () => { const r = await api('GET', '?all=1'); if (r.ok) renderList(await r.json()); });
 
-  $('aiBtn').addEventListener('click', async () => {
-    note('aiNote', 'Generating drafts with AI… this can take ~30s.');
+  $('aiBtn').addEventListener('click', () => generate(false));
+  $('previewNowBtn').addEventListener('click', () => generate(true));
+
+  async function generate(force) {
+    note('aiNote', force
+      ? 'Writing the preview for the next match… this can take ~30s.'
+      : 'Generating with AI… this can take ~30s.');
     try {
-      const r = await fetch('/api/ai-news', { method: 'POST', headers: { 'x-admin-key': KEY, Accept: 'application/json' } });
+      const r = await fetch('/api/ai-news' + (force ? '?force=1' : ''),
+        { method: 'POST', headers: { 'x-admin-key': KEY, Accept: 'application/json' } });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { note('aiNote', j.error || 'AI generation failed.', true); return; }
       const n = (j.created || []).length;
@@ -71,6 +77,8 @@
         msg = 'Holding off — a match is in progress. The preview goes out once it is over.';
       } else if (skipped.length) {
         msg = 'Nothing written: ' + skipped[0].kind + ' failed — ' + skipped[0].reason;
+      } else if (force && !c.previews) {
+        msg = 'The next fixture already has a preview.';
       } else if (!c.recaps && !c.previews) {
         msg = 'Nothing new — no recent results, and the next fixture is still more than a couple of days away.';
       } else {
@@ -80,7 +88,7 @@
       note('aiNote', msg, !n && skipped.length > 0);
       const l = await api('GET', '?all=1'); if (l.ok) renderList(await l.json());
     } catch (e) { note('aiNote', 'AI generation failed (network).', true); }
-  });
+  }
 
   $('purgeBtn').addEventListener('click', async () => {
     const drafts = (window.__articles || []).filter((a) => a.status !== 'published');

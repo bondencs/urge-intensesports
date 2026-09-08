@@ -77,6 +77,11 @@ module.exports = async (req, res) => {
   if (!KV_URL || !KV_TOKEN) return fail(res, 503, 'News storage not configured (missing Vercel KV).');
   if (!GG_TOKEN) return fail(res, 503, 'Match data not configured (missing GGARENA_TOKEN).');
 
+  // ?force=1 (admin only) writes the next fixture's preview immediately instead
+  // of waiting for the lead time. Deliberate human action, so the timing rules
+  // that keep the cron from posting mid-game don't apply.
+  const force = isAdmin && String((req.query && req.query.force) || '') === '1';
+
   try {
     const existing = await getArticles();
     // Dedupe per match AND per kind: a fixture gets a preview before it is
@@ -101,10 +106,14 @@ module.exports = async (req, res) => {
     const playingNow = matches.some(
       (m) => !m.finished && !m.cancelled && m.ts <= now && now - m.ts <= IN_PROGRESS_HOURS * 3600000
     );
-    const previews = playingNow ? [] : matches
+    const upcoming = matches
       .filter((m) => !m.finished && !m.cancelled && m.ts > now && !covered.preview.has(String(m.id)))
-      .filter((m) => m.ts - now <= (PREVIEW_LEAD_DAYS + 1) * DAY)
       .sort((a, b) => a.ts - b.ts);
+    const previews = playingNow && !force
+      ? []
+      : force
+        ? upcoming.slice(0, 1)   // just the next one, on demand
+        : upcoming.filter((m) => m.ts - now <= (PREVIEW_LEAD_DAYS + 1) * DAY);
 
     // Season pieces come first: they are the big set-piece articles.
     const jobs = [];
@@ -148,7 +157,8 @@ module.exports = async (req, res) => {
       created,
       skipped,
       published: AUTOPUBLISH,
-      heldForMatchInProgress: playingNow,
+      forced: force,
+      heldForMatchInProgress: playingNow && !force,
       candidates: {
         recaps: recaps.length,
         previews: previews.length,
