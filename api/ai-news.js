@@ -109,12 +109,15 @@ module.exports = async (req, res) => {
     const playingNow = matches.some(
       (m) => !m.finished && !m.cancelled && m.ts <= now && now - m.ts <= IN_PROGRESS_HOURS * 3600000
     );
-    const upcoming = matches
-      .filter((m) => !m.finished && !m.cancelled && m.ts > now && !covered.preview.has(String(m.id)))
-      .sort((a, b) => a.ts - b.ts);
-    // Always the next fixture only - never a stack of previews at once.
-    const nextUp = upcoming[0] || null;
-    const previewDue = nextUp && (force || previewIsDue(nextUp, matches, existing, now));
+    // The very next fixture, coverage NOT considered: if we skipped the ones
+    // that already have a preview, every published preview would promote the
+    // following fixture to "next" and the cron would write the whole season.
+    const nextUp = matches
+      .filter((m) => !m.finished && !m.cancelled && m.ts > now)
+      .sort((a, b) => a.ts - b.ts)[0] || null;
+    const nextCovered = !!nextUp && covered.preview.has(String(nextUp.id));
+    const previewDue = !!nextUp && !nextCovered &&
+      (force || previewIsDue(nextUp, matches, existing, now));
     const previews = (playingNow && !force) || !previewDue ? [] : [nextUp];
 
     // Season pieces come first: they are the big set-piece articles.
@@ -167,6 +170,7 @@ module.exports = async (req, res) => {
       candidates: {
         recaps: recaps.length,
         previews: previews.length,
+        nextFixtureAlreadyPreviewed: nextCovered,
         season: jobs.filter((j) => j.kind.startsWith('season')).map((j) => j.kind),
       },
     });

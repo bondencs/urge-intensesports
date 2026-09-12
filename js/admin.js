@@ -77,8 +77,8 @@
         msg = 'Holding off — a match is in progress. The preview goes out once it is over.';
       } else if (skipped.length) {
         msg = 'Nothing written: ' + skipped[0].kind + ' failed — ' + skipped[0].reason;
-      } else if (force && !c.previews) {
-        msg = 'The next fixture already has a preview.';
+      } else if (c.nextFixtureAlreadyPreviewed) {
+        msg = 'Nothing new — the next fixture already has its preview.';
       } else if (!c.recaps && !c.previews) {
         msg = 'Nothing new — no recent results, and the next fixture is still more than a couple of days away.';
       } else {
