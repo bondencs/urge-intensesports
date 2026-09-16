@@ -17,8 +17,11 @@
    through the team's whole history, drafting recaps of matches from
    seasons ago.
 
-   Articles are PUBLISHED immediately by default (AI_AUTOPUBLISH=0
-   turns that off and goes back to drafts awaiting approval).
+   Every draft goes through a second "sub-editor" pass that checks it
+   against the facts it was written from and fixes contradictions.
+   Checked articles are PUBLISHED immediately by default
+   (AI_AUTOPUBLISH=0 turns that off); one the check could not
+   confirm is saved as a draft for a human instead.
 
    Required env: ANTHROPIC_API_KEY, GGARENA_TOKEN, KV_REST_API_*.
    Auth: Vercel Cron sends "Authorization: Bearer <CRON_SECRET>";
@@ -138,25 +141,19 @@ module.exports = async (req, res) => {
     for (const m of previews) { if (jobs.length >= MAX_NEW) break; jobs.push({ kind: 'preview', match: m, context: season }); }
 
     const client = new Anthropic({ apiKey: ANTHROPIC_KEY });
+    // Each job is a write plus a fact-check; one after another, a busy run would
+    // outlast the function time limit, and the jobs don't depend on each other.
+    const outcomes = await Promise.all(jobs.map((job) => runJob(client, job)));
+
     const created = [];
     const skipped = [];   // never fail silently: the admin needs to see why
-    for (const job of jobs) {
-      try {
-        const stats = job.kind === 'recap' ? await fetchOurStats(job.match).catch(() => null) : null;
-        if (job.kind === 'recap') job.maps = await fetchMaps(job.match).catch(() => null);
-        if (job.kind === 'preview') job.scout = await scoutOpponent(job.match).catch(() => null);
-        if (job.kind === 'season-review') job.season.top = await seasonPlayers(job.season).catch(() => null);
-        const draft = await writeArticle(client, job, stats);
-        if (!draft) {
-          skipped.push({ kind: job.kind, reason: 'The model did not return usable JSON.' });
-          continue;
-        }
-        const article = toArticle(draft, job);
-        existing.push(article);
-        created.push({ id: article.id, title: article.title, kind: job.kind, status: article.status });
-      } catch (e) {
-        skipped.push({ kind: job.kind, reason: (e && e.message) || 'Unknown error.' });
-      }
+    for (const o of outcomes) {
+      if (!o.article) { skipped.push({ kind: o.job.kind, reason: o.error }); continue; }
+      existing.push(o.article);
+      created.push({
+        id: o.article.id, title: o.article.title, kind: o.job.kind,
+        status: o.article.status, verified: o.verified,
+      });
     }
     if (created.length) await saveArticles(existing);
 
@@ -178,6 +175,20 @@ module.exports = async (req, res) => {
     return fail(res, err.statusCode || 500, err.message || 'AI writer error.');
   }
 };
+
+async function runJob(client, job) {
+  try {
+    const stats = job.kind === 'recap' ? await fetchOurStats(job.match).catch(() => null) : null;
+    if (job.kind === 'recap') job.maps = await fetchMaps(job.match).catch(() => null);
+    if (job.kind === 'preview') job.scout = await scoutOpponent(job.match).catch(() => null);
+    if (job.kind === 'season-review') job.season.top = await seasonPlayers(job.season).catch(() => null);
+    const out = await writeArticle(client, job, stats);
+    if (!out) return { job, error: 'The model did not return usable JSON.' };
+    return { job, verified: out.verified, article: toArticle(out.draft, job, out.verified) };
+  } catch (e) {
+    return { job, error: (e && e.message) || 'Unknown error.' };
+  }
+}
 
 /* ---------- when a preview is due ---------- */
 // The day after the previous match's recap went out. That gives the squad the
@@ -215,6 +226,46 @@ async function writeArticle(client, job, stats) {
   });
 
   const text = (message.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+  const draft = parseJson(text);
+  if (!draft) return null;
+
+  // Nothing is published unchecked: a second pass reads the draft against the
+  // facts it was written from and corrects anything that does not match.
+  const checked = await factCheck(client, draft, spec.facts).catch(() => null);
+  return checked ? { draft: checked, verified: true } : { draft, verified: false };
+}
+
+const SUB_EDITOR = `You are the sub-editor for the website of Urge Intensesports, a semi-professional Counter-Strike 2 team. You get a draft article and the FACTS it was written from, and you correct the draft before it is published.
+
+Fix, and only fix:
+- anything that contradicts the facts: who won a map or the series, any score, dates and times, home or away, round numbers, league position, the season record, player numbers;
+- any sentence that contradicts itself or the rest of the article, such as describing a lost map as won;
+- any number, name or claim the facts do not support.
+
+Scores from Urge matches are written with Urge first. Records inside opponent_scouting belong to the opponent, not to Urge. Keep everything else as it is: the voice, the headings, the structure and roughly the length. Do not add new claims, and do not rewrite sentences that are already correct.
+
+Reply with only the corrected article as a JSON object with the keys "title", "excerpt" and "body" - no code fences, no commentary.`;
+
+async function factCheck(client, draft, facts) {
+  const message = await client.messages.create({
+    model: MODEL,
+    max_tokens: 8000,
+    // Checking a draft against facts is reasoning work, so let it think first.
+    thinking: { type: 'adaptive' },
+    output_config: { effort: 'medium' },
+    system: SUB_EDITOR,
+    messages: [{
+      role: 'user',
+      content: `FACTS:
+${JSON.stringify(facts, null, 2)}
+
+DRAFT:
+${JSON.stringify(draft, null, 2)}`,
+    }],
+  });
+  // Cut off or declined: count it as unchecked rather than trust half a pass.
+  if (message.stop_reason !== 'end_turn') return null;
+  const text = (message.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   return parseJson(text);
 }
 
@@ -244,13 +295,13 @@ function matchPrompt(job, stats) {
       league_position: ctx.position,
       is_season_opener: ctx.played === 0,
       last_result: last
-        ? { opponent: last.opponent, result: last.result, score_maps: last.score_maps }
+        ? { opponent: last.opponent, urge_maps: last.urge_maps, opponent_maps: last.opponent_maps, won_by: last.won_by }
         : null,
     };
   }
   if (job.kind === 'recap') {
     facts.result = m.result; // "win" | "loss"
-    facts.score_maps = m.ourScore != null && m.theirScore != null ? m.ourScore + '-' + m.theirScore : null;
+    facts.series = seriesFacts(m);
     if (job.maps && job.maps.length) facts.maps_played = job.maps;   // per map, in order
     if (stats && stats.length) {
       facts.our_players = stats.slice(0, 5).map((p) => ({
@@ -299,9 +350,10 @@ function matchPrompt(job, stats) {
       : ' Keep it 160-260 words.');
 
   const angle = job.kind === 'recap'
-    ? 'Reflect the result and the series score. If maps_played is provided, name every map and its ' +
-      'round score - a bulleted list is fine - and say which way each one went. If player stats are ' +
-      'provided, highlight the top performer by rating.'
+    ? 'Reflect the result and the series score from series. If maps_played is provided, name every ' +
+      'map with its round score written Urge first (urge_rounds-opponent_rounds) - a bulleted list is ' +
+      'fine - and describe each map the way won_by says it went. If player stats are provided, ' +
+      'highlight the top performer by rating.'
     : 'Build anticipation; do NOT state or imply a result.';
 
   const scoutBrief = `- body: Markdown. Open with a short paragraph on the fixture, then use these "## " sections:
@@ -326,7 +378,7 @@ Write about Urge in the third person. Never invent a number that is not in the d
 ${isScoutedPreview ? scoutBrief : `- body: Markdown, two or three short paragraphs (optionally one "## " subheading). Name the opponent and competition. ${angle}`}
 ${JSON_ONLY}${JSON.stringify(facts, null, 2)}`;
 
-  return { system, user };
+  return { system, user, facts };
 }
 
 function seasonPrompt(job) {
@@ -373,7 +425,7 @@ function seasonPrompt(job) {
 - body: Markdown, three or four paragraphs with two "## " subheadings. ${angle}
 ${JSON_ONLY}${JSON.stringify(facts, null, 2)}`;
 
-  return { system, user };
+  return { system, user, facts };
 }
 
 const voice = (what) =>
@@ -398,7 +450,7 @@ const CATEGORY = {
   'season-review': 'Season Review',
 };
 
-function toArticle(draft, job) {
+function toArticle(draft, job, verified) {
   const now = new Date().toISOString();
   return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
@@ -409,7 +461,8 @@ function toArticle(draft, job) {
     body: String(draft.body || ''),
     image: '',
     author: 'Urge AI',
-    status: AUTOPUBLISH ? 'published' : 'draft',
+    // Unchecked drafts never auto-publish: if the fact-check failed, a human decides.
+    status: AUTOPUBLISH && verified ? 'published' : 'draft',
     kind: job.kind,
     matchId: job.match ? job.match.id : null,
     // one season preview and one season review per division, ever
@@ -513,12 +566,7 @@ async function seasonState(allMatches) {
     wins, losses, mapsWon, mapsLost,
     first: ours[0] || null,
     opponents: ours.map((m) => m.opponent),
-    results: done.map((m) => ({
-      opponent: m.opponent,
-      result: m.result,
-      score_maps: m.ourScore != null && m.theirScore != null ? m.ourScore + '-' + m.theirScore : null,
-      date: osloDate(m.date),
-    })),
+    results: done.map((m) => Object.assign({ opponent: m.opponent, date: osloDate(m.date) }, seriesFacts(m))),
     position: done.length ? tablePosition(fixtures) : null,
     lastSeason: previousSeason(allMatches || [], divisionId),
     ourMatches: done.map((m) => ({ id: m.id, ourSide: m.ourSide })),
@@ -649,6 +697,17 @@ async function teamMatchups() {
   return out;
 }
 
+// A series result with nothing left to interpret. A bare "1-2" invites the
+// model to guess which number is ours; named fields and a winner do not.
+function seriesFacts(m) {
+  if (m.ourScore == null || m.theirScore == null) return { won_by: null };
+  return {
+    urge_maps: m.ourScore,
+    opponent_maps: m.theirScore,
+    won_by: m.result === 'win' ? TEAM_NAME : m.opponent,
+  };
+}
+
 // Per-map scoreline for a finished match, from our point of view.
 async function fetchMaps(m) {
   const d = await gg('matchup/' + encodeURIComponent(m.id));
@@ -660,8 +719,9 @@ async function fetchMaps(m) {
       const theirs = Number(m.ourSide === 'home' ? x.away_score : x.home_score);
       return {
         map: (x.resource && x.resource.name) || 'Unknown',
-        score: ours + '-' + theirs,
-        result: ours > theirs ? 'win' : 'loss',
+        urge_rounds: ours,
+        opponent_rounds: theirs,
+        won_by: ours > theirs ? TEAM_NAME : m.opponent,
       };
     });
 }

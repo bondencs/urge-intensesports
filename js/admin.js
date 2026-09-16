@@ -70,9 +70,16 @@
       const c = j.candidates || {};
       let msg;
       if (n) {
-        msg = j.published
-          ? 'Published ' + n + ' article' + (n > 1 ? 's' : '') + ' — they are live on the news page now.'
-          : 'Created ' + n + ' draft' + (n > 1 ? 's' : '') + ' — review and publish them below.';
+        const live = j.created.filter((a) => a.status === 'published').length;
+        const held = n - live;
+        const parts = [];
+        if (live) parts.push('Published ' + live + ' article' + (live > 1 ? 's' : '') + ' — live now.');
+        if (held) {
+          parts.push(held + ' saved as draft' + (held > 1 ? 's' : '') + (j.published
+            ? ' because the fact-check could not confirm ' + (held > 1 ? 'them' : 'it') + ' — review below.'
+            : ' — review and publish below.'));
+        }
+        msg = parts.join(' ');
       } else if (j.heldForMatchInProgress) {
         msg = 'Holding off — a match is in progress. The preview goes out once it is over.';
       } else if (skipped.length) {
