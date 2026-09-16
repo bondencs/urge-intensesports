@@ -64,7 +64,15 @@ const SEASON_PREVIEW_DAYS = Number(process.env.AI_SEASON_PREVIEW_DAYS || 21);
 const DAY = 86400000;
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = process.env.AI_MODEL || 'claude-opus-4-8'; // override to e.g. claude-haiku-4-5 to cut cost
+// Claude Opus 5 reasons before it writes by default. AI_MODEL can point at a
+// cheaper model that also supports adaptive thinking and effort, such as
+// claude-sonnet-5 - Haiku does not, and the fact-check pass would reject it.
+const MODEL = process.env.AI_MODEL || 'claude-opus-5';
+// How hard the writer thinks: low | medium | high | xhigh | max.
+const EFFORT = process.env.AI_EFFORT || 'high';
+// The sub-editor pass. Opus 5 checks its own work, so this is a second line of
+// defence for auto-published articles; AI_FACT_CHECK=0 turns it off.
+const FACT_CHECK = (process.env.AI_FACT_CHECK || '1') !== '0';
 const ADMIN = process.env.ADMIN_PASSWORD;
 const CRON_SECRET = process.env.CRON_SECRET;
 const MAX_NEW = Number(process.env.AI_MAX_PER_RUN || 3);
@@ -162,6 +170,8 @@ module.exports = async (req, res) => {
       created,
       skipped,
       published: AUTOPUBLISH,
+      model: MODEL,
+      factCheck: FACT_CHECK,
       forced: force,
       heldForMatchInProgress: playingNow && !force,
       candidates: {
@@ -218,21 +228,47 @@ function previewIsDue(next, matches, existing, now) {
 async function writeArticle(client, job, stats) {
   const spec = job.kind.startsWith('season') ? seasonPrompt(job) : matchPrompt(job, stats);
 
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1600,
+  // max_tokens covers the thinking as well as the article on Opus 5.
+  const message = await ask(client, {
+    max_tokens: 16000,
+    output_config: { effort: EFFORT },
     system: spec.system,
     messages: [{ role: 'user', content: spec.user }],
   });
+  assertFinished(message);
 
   const text = (message.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
   const draft = parseJson(text);
   if (!draft) return null;
+  if (!FACT_CHECK) return { draft, verified: true };
 
-  // Nothing is published unchecked: a second pass reads the draft against the
-  // facts it was written from and corrects anything that does not match.
+  // A second pass reads the draft against the facts it was written from and
+  // corrects anything that does not match.
   const checked = await factCheck(client, draft, spec.facts).catch(() => null);
   return checked ? { draft: checked, verified: true } : { draft, verified: false };
+}
+
+// Opus 5's safety classifiers can decline a request, and match reports are
+// full of attacks, kills and executes. Server-side fallbacks re-run a declined
+// request on Anthropic's recommended model inside the same call.
+const FALLBACK_READY = /^claude-(opus-5|fable-5-1)$/.test(MODEL);
+
+function ask(client, params) {
+  const fallback = FALLBACK_READY
+    ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }
+    : {};
+  return client.beta.messages.create(Object.assign({ model: MODEL }, params, fallback));
+}
+
+// A declined or truncated reply must never be parsed as if it were an article.
+function assertFinished(message) {
+  if (message.stop_reason === 'refusal') {
+    const why = message.stop_details && message.stop_details.category;
+    throw new Error('Claude declined to write this' + (why ? ' (' + why + ')' : '') + '.');
+  }
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error('The article ran out of room before it was finished.');
+  }
 }
 
 const SUB_EDITOR = `You are the sub-editor for the website of Urge Intensesports, a semi-professional Counter-Strike 2 team. You get a draft article and the FACTS it was written from, and you correct the draft before it is published.
@@ -247,9 +283,8 @@ Scores from Urge matches are written with Urge first. Records inside opponent_sc
 Reply with only the corrected article as a JSON object with the keys "title", "excerpt" and "body" - no code fences, no commentary.`;
 
 async function factCheck(client, draft, facts) {
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 8000,
+  const message = await ask(client, {
+    max_tokens: 16000,
     // Checking a draft against facts is reasoning work, so let it think first.
     thinking: { type: 'adaptive' },
     output_config: { effort: 'medium' },
@@ -435,6 +470,7 @@ const voice = (what) =>
   `You write ${what} for the team's website. ` +
   'Voice: confident and energetic, but factual and never arrogant; third person ("Urge", "the squad"). ' +
   'Hard rule: use ONLY the facts in the provided data - never invent scores, players, dates, maps, or results. ' +
+  'Stay inside the word count you are given; do not pad. ' +
   'All dates and times in the data are already Norwegian local time (Europe/Oslo, CET/CEST) - quote them exactly as given and never convert or re-label them.';
 
 const JSON_ONLY = `

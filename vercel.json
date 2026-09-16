@@ -5,6 +5,6 @@
   ],
   "functions": {
     "api/scout.js": { "maxDuration": 60 },
-    "api/ai-news.js": { "maxDuration": 60 }
+    "api/ai-news.js": { "maxDuration": 300 }
   }
 }

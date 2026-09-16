@@ -79,7 +79,7 @@
             ? ' because the fact-check could not confirm ' + (held > 1 ? 'them' : 'it') + ' — review below.'
             : ' — review and publish below.'));
         }
-        msg = parts.join(' ');
+        msg = parts.join(' ') + (j.model ? ' (written by ' + j.model + (j.factCheck ? ', fact-checked' : '') + ')' : '');
       } else if (j.heldForMatchInProgress) {
         msg = 'Holding off — a match is in progress. The preview goes out once it is over.';
       } else if (skipped.length) {
