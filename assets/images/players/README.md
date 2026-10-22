@@ -7,7 +7,7 @@ Drop each player's photo in this folder, named **exactly** (all lowercase):
 | bondeN | `bonden.jpg` |
 | Zutch  | `zutch.jpg` |
 | tob1   | `tob1.jpg` |
-| Hamruz | `hamruz.jpg` |
+| vaga8ond | `vaga8ond.jpg` |
 | Jaybee | `jaybee.jpg` |
 
 (`.png` works too — e.g. `bonden.png`. The card tries `.jpg` first, then `.png`.)

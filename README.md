@@ -65,7 +65,7 @@ It's a front-end demo right now. Easiest real option: create a free
 
 ## Roster
 
-bondeN 🇳🇴 · Zutch 🇳🇴 · tob1 🇩🇪 · Hamruz 🇳🇴 · Jaybee 🇳🇴
+bondeN 🇳🇴 · Zutch 🇳🇴 · tob1 🇩🇪 · vaga8ond 🇳🇴 · Jaybee 🇳🇴
 
 #URGEUP
 
